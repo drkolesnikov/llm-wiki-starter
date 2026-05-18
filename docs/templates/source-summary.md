@@ -4,6 +4,13 @@ status: needs-review
 source_id: ""
 source_tier: reference
 title: ""
+sources: []
+aliases: []
+tags:
+  - source-summary
+source_count: 0
+linked_concepts: []
+linked_reviews: []
 updated: YYYY-MM-DD
 ---
 

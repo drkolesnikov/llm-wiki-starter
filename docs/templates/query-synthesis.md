@@ -4,7 +4,8 @@ status: draft
 title: ""
 owner: ""
 aliases: []
-tags: []
+tags:
+  - query-synthesis
 sources: []
 source_count: 0
 linked_concepts: []
@@ -14,9 +15,13 @@ updated: YYYY-MM-DD
 
 # Title
 
-## Claim
+## Query
 
-State the narrow claim this note should preserve.
+State the reusable question this artifact answers.
+
+## Answer
+
+Give the concise synthesis that should survive outside chat.
 
 ## Source Support
 
@@ -24,9 +29,11 @@ State the narrow claim this note should preserve.
 - locator:
 - confidence:
 
-## Details
+## Artifact Route
 
-Write only what is supported by the linked sources or decisions.
+- Chosen route:
+- Why this was promoted:
+- Why other routes were not used:
 
 ## Open Questions
 
@@ -35,5 +42,5 @@ Write only what is supported by the linked sources or decisions.
 ## Links
 
 - Workstream:
+- Issue:
 - Review:
-- Decision:

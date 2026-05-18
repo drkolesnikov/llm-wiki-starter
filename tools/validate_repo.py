@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import re
 import sys
+import argparse
+from collections import Counter
 from pathlib import Path
 
 
@@ -17,6 +19,7 @@ ALLOWED_ARTIFACT_TYPES = {
     "source-registry",
     "index",
     "log",
+    "milestone",
     "workstream",
     "review",
     "decision",
@@ -42,6 +45,7 @@ ALLOWED_SOURCE_TIERS = {
 }
 
 LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
+WIKILINK_RE = re.compile(r"\[\[([^\]|#]+)")
 
 
 def rel(path: Path) -> str:
@@ -221,6 +225,123 @@ def validate_links(errors: list[str]) -> None:
                 errors.append(f"{rel(path)}: broken link: {href}")
 
 
+def linked_markdown_targets() -> set[str]:
+    targets: set[str] = set()
+    for path in markdown_files():
+        text = path.read_text(encoding="utf-8")
+        for match in LINK_RE.finditer(text):
+            href = match.group(1).strip()
+            if should_skip_link(href):
+                continue
+            target_text = href.split("#", 1)[0]
+            if not target_text:
+                continue
+            target = (path.parent / target_text).resolve()
+            try:
+                targets.add(rel(target))
+            except ValueError:
+                continue
+    return targets
+
+
+def title_values(path: Path, frontmatter: dict[str, object]) -> set[str]:
+    values = {path.stem}
+    title = frontmatter.get("title")
+    if title:
+        values.add(str(title).strip())
+    aliases = frontmatter.get("aliases")
+    if isinstance(aliases, list):
+        values.update(str(alias).strip() for alias in aliases if str(alias).strip())
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("# "):
+            values.add(line[2:].strip())
+            break
+    return {value.casefold() for value in values if value}
+
+
+def health_report(sources: dict[str, dict[str, str]]) -> str:
+    frontmatter_by_path: dict[Path, dict[str, object]] = {}
+    for path in markdown_files():
+        frontmatter, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+        if frontmatter:
+            frontmatter_by_path[path] = frontmatter
+
+    status_counts = Counter(
+        str(frontmatter.get("status"))
+        for frontmatter in frontmatter_by_path.values()
+        if frontmatter.get("status")
+    )
+    unresolved = [
+        f"{rel(path)} ({frontmatter.get('status')})"
+        for path, frontmatter in frontmatter_by_path.items()
+        if frontmatter.get("status") in {"needs-review", "conflicted"}
+    ]
+
+    linked_targets = linked_markdown_targets()
+    orphan_candidates = [
+        rel(path)
+        for path, frontmatter in frontmatter_by_path.items()
+        if is_health_artifact(path, frontmatter) and rel(path) not in linked_targets
+    ]
+
+    known_titles: set[str] = set()
+    for path, frontmatter in frontmatter_by_path.items():
+        known_titles.update(title_values(path, frontmatter))
+
+    unresolved_wikilinks: set[str] = set()
+    for path in markdown_files():
+        text = strip_inline_code(path.read_text(encoding="utf-8"))
+        for target in WIKILINK_RE.findall(text):
+            if target.strip().casefold() not in known_titles:
+                unresolved_wikilinks.add(f"{rel(path)} -> [[{target.strip()}]]")
+
+    lines = [
+        "",
+        "Wiki health report",
+        "==================",
+        "Status counts:",
+    ]
+    if status_counts:
+        lines.extend(f"- {status}: {count}" for status, count in sorted(status_counts.items()))
+    else:
+        lines.append("- none")
+
+    lines.append("")
+    lines.append("Unresolved statuses:")
+    lines.extend(format_report_items(unresolved))
+
+    lines.append("")
+    lines.append("Orphan candidates:")
+    lines.extend(format_report_items(orphan_candidates))
+
+    lines.append("")
+    lines.append("Unresolved wikilinks:")
+    lines.extend(format_report_items(sorted(unresolved_wikilinks)))
+
+    lines.append("")
+    lines.append("Registered sources:")
+    lines.append(f"- {len(sources)}")
+    return "\n".join(lines)
+
+
+def is_health_artifact(path: Path, frontmatter: dict[str, object]) -> bool:
+    artifact_type = frontmatter.get("artifact_type")
+    if artifact_type in {"index", "log", "source-registry"}:
+        return False
+    rel_path = rel(path)
+    return rel_path.startswith(("knowledge/", "reviews/", "projects/"))
+
+
+def format_report_items(items: list[str]) -> list[str]:
+    if not items:
+        return ["- none"]
+    return [f"- {item}" for item in items]
+
+
+def strip_inline_code(text: str) -> str:
+    return re.sub(r"`[^`]*`", "", text)
+
+
 def should_skip_link(href: str) -> bool:
     lowered = href.lower()
     return (
@@ -232,7 +353,18 @@ def should_skip_link(href: str) -> bool:
     )
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Validate structural wiki repository rules.")
+    parser.add_argument(
+        "--health-report",
+        action="store_true",
+        help="Print non-blocking wiki health signals after structural validation.",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
     errors: list[str] = []
     sources = registered_sources()
     validate_frontmatter(errors, sources)
@@ -244,6 +376,8 @@ def main() -> int:
         print(f"\nRepository validation failed with {len(errors)} issue(s).")
         return 1
     print("Repository validation passed.")
+    if args.health_report:
+        print(health_report(sources))
     return 0
 
 
