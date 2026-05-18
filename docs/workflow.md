@@ -40,6 +40,12 @@ Register sources before using them across durable artifacts. Keep heavyweight or
 
 Knowledge notes should be focused, source-supported, and easy to revise. Put the practical take first, then source notes and uncertainty.
 
+## Query Loop
+
+Useful query answers can become durable wiki artifacts when they create reusable synthesis, comparison, review, or decision material. Use [query workflow](query-workflow.md) to decide whether the answer stays ephemeral or becomes a knowledge note, review, decision, source summary, or workstream update.
+
+Promoted query artifacts must cite registered sources when factual, mark uncertainty, and stand on their own without relying on chat history.
+
 ## Reviews
 
 Reviews capture validation, critique, unresolved questions, and follow-up work. A review should name the artifact it evaluates and the next action.
