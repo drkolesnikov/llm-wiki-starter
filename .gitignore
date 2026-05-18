@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.cache/
+.pytest_cache/
+.DS_Store
+
+# Heavy originals stay outside normal Git history.
+*.pdf
+raw/external/**
+!raw/external/
+!raw/external/README.md
+
+# Generated local scratch output.
+tmp/
+scratch/
