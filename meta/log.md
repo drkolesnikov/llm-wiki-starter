@@ -9,6 +9,7 @@ updated: 2026-05-18
 
 ## 2026-05-18
 
+- Hardened the publishing-readiness GitHub Actions workflow with explicit read permissions, manual dispatch, and `python`/`python3` fallback commands after startup-only check failures.
 - Completed M3 publishing-readiness polish for PR #7: public README, MIT license, CI test enforcement, CLI and health-report tests, source credibility wording, and local milestone trail.
 - Completed M2 scale-readiness artifacts: local wiki search workflow and CLI, wiki health lint workflow, health-check issue/review templates, and non-blocking validator health report.
 - Completed M1 foundation artifacts: CI validation workflow, Obsidian conventions, query-to-artifact workflow, and Karpathy LLM Wiki pattern source summary and knowledge note.
