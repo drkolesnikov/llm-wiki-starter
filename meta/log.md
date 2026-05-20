@@ -9,6 +9,7 @@ updated: 2026-05-20
 
 ## 2026-05-20
 
+- Packaged the starter as an installable `llm-wiki` CLI plus local Codex plugin scaffold; added a vendored clean template, safe-merge installer, status reporting, and installer/plugin tests.
 - Replaced the PDF ingest parser internals with Docling while preserving the derived-source output contract; added mocked ingest tests and recorded the Docling adoption decision.
 - Added uv project metadata, moved PDF ingest dependency management into a uv dependency group, and updated validation/source-ingest commands plus CI to run through uv.
 

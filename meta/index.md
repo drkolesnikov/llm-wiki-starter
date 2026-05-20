@@ -24,6 +24,7 @@ This index starts blank. Add only durable artifacts that should be easy for futu
 ## Decisions
 
 - [Adopt Docling for PDF Ingest](../projects/decisions/adopt-docling-pdf-ingest.md)
+- [Package LLM Wiki as a Plugin and Installer](../projects/decisions/package-llm-wiki-plugin.md)
 
 ## Sources
 

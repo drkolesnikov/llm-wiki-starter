@@ -16,24 +16,12 @@ The starter is intentionally generic: bring your own domain, keep source materia
 uv run python tools/validate_repo.py
 ```
 
-## Install Into Another Repo
-
-This repository also ships a uv-backed installer CLI and Codex plugin scaffold for spawning a clean, namespaced wiki into another project:
-
-```bash
-uv run llm-wiki init /path/to/target-repo --yes
-uv run llm-wiki status /path/to/target-repo
-```
-
-The installer creates `.llm-wiki/` in the target repo and adds a small root `AGENTS.md` pointer block. It renders the vendored scaffold through Copier into a temporary directory, then performs a safe merge: missing files are created, matching files are left alone, and conflicting files are preserved with details in `.llm-wiki/meta/install-report.md`.
-
 ## What This Starter Gives You
 
 - A small Markdown knowledge base layout with clear boundaries between `raw/`, `knowledge/`, `reviews/`, `projects/`, `docs/`, and `meta/`.
 - An agent workflow that starts from a visible workstream or issue and ends with traceable validation.
 - A source registry, source tiers, and ingest rules for keeping evidence explicit.
 - Docling-backed PDF ingest through the optional uv `pdf` dependency group.
-- A `llm-wiki` installer CLI plus local Codex plugin scaffold for creating `.llm-wiki/` workspaces inside other repositories.
 - Templates for knowledge notes, source summaries, reviews, decisions, query synthesis, workstreams, and agent tasks.
 - Local validation for required frontmatter, registered source references, and relative Markdown links.
 - Optional search and wiki health review lanes for when the wiki grows beyond index-first navigation.
@@ -83,15 +71,12 @@ README.md                  Public landing page
 LICENSE                    Project license
 .python-version            Default Python version for uv-managed environments
 pyproject.toml             uv project metadata and dependency groups
-.agents/                   Local Codex plugin marketplace metadata
 docs/                      Runbooks, workflows, policies, and templates
 meta/                      Index, source registry, and maintenance log
 raw/                       Source pointers, external originals, and derivatives
 knowledge/                 Durable source-supported notes
 reviews/                   Validation and critique artifacts
 projects/                  Workstreams, milestones, and project coordination
-plugins/                   Local Codex plugin packages
-src/                       Python installer package and vendored scaffold template
 tools/                     Validation, search, and source-ingest utilities
 tests/                     Test coverage for local tooling
 ```
