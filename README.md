@@ -1,31 +1,67 @@
 # LLM Wiki Starter
 
-A public starter for an agent-maintained Markdown wiki. It gives humans and LLM agents a shared, inspectable workspace for source intake, source decomposition, durable knowledge notes, reviews, decisions, and project coordination.
+Spawn a safe `.llm-wiki/` workspace inside any repository. LLM Wiki gives humans and agents a shared, inspectable place for source intake, document decomposition, durable knowledge notes, reviews, decisions, and project coordination without taking over the host repo.
 
-The starter is intentionally generic: bring your own domain, keep source material separate from synthesis, and leave a trace that future agents can validate.
+The installer is intentionally conservative: it creates missing files, preserves existing files, and leaves a trace that future agents can validate.
 
-## Quickstart
+## Install In An Existing Repo
 
-1. Read the [agent entry point](AGENTS.md), then the [agent runbook](docs/agent-runbook.md).
-2. Check the current navigation surfaces: [wiki index](meta/index.md), [source registry](meta/source-registry.md), and any active [workstreams](projects/workstreams/README.md).
-3. Add sources only through the documented [source ingest policy](docs/source-ingest-policy.md).
-4. Write durable notes, reviews, decisions, and workstream updates from the matching [templates](docs/templates/).
-5. Run validation before handoff:
+1. Install or check `uv`:
 
 ```bash
+uv --version
+```
+
+If `uv` is not installed yet, use the official installer from [docs.astral.sh/uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+2. Preview the install in your target repo:
+
+```bash
+uvx --from git+https://github.com/abrapacabra/llm-wiki-starter llm-wiki init /path/to/repo --dry-run --yes --json
+```
+
+3. Create the wiki workspace:
+
+```bash
+uvx --from git+https://github.com/abrapacabra/llm-wiki-starter llm-wiki init /path/to/repo --yes
+```
+
+4. Check the installation status:
+
+```bash
+uvx --from git+https://github.com/abrapacabra/llm-wiki-starter llm-wiki status /path/to/repo --json
+```
+
+5. Read the generated agent entry point:
+
+```bash
+sed -n '1,160p' /path/to/repo/.llm-wiki/AGENTS.md
+```
+
+6. Validate the generated wiki:
+
+```bash
+cd /path/to/repo/.llm-wiki
 uv run python tools/validate_repo.py
 ```
 
-## Install Into Another Repo
+## What Gets Created
 
-This repository also ships a uv-backed installer CLI and Codex plugin scaffold for spawning a clean, namespaced wiki into another project:
+The installer creates a namespaced wiki at `.llm-wiki/` and adds only one host-repo pointer outside that directory.
 
-```bash
-uv run llm-wiki init /path/to/target-repo --yes
-uv run llm-wiki status /path/to/target-repo
-```
+- `.llm-wiki/AGENTS.md`: the first-read file for future agents working in the wiki.
+- `.llm-wiki/docs/`, `.llm-wiki/meta/`, `.llm-wiki/raw/`, `.llm-wiki/knowledge/`, `.llm-wiki/reviews/`, `.llm-wiki/projects/`, and `.llm-wiki/tools/`: the wiki workspace.
+- `.llm-wiki/pyproject.toml` and `.llm-wiki/uv.lock`: an isolated uv project for wiki tooling, so host dependencies stay untouched.
+- `.llm-wiki/meta/install.json`: scaffold version, installer version, creation time, layout, and managed-file checksums.
+- `.llm-wiki/meta/install-report.md`: created files, unchanged files, root pointer action, and any conflicts.
+- `AGENTS.md` in the target repo root: a small pointer block telling agents to read `.llm-wiki/AGENTS.md`.
 
-The installer creates `.llm-wiki/` in the target repo and adds a small root `AGENTS.md` pointer block. It renders the vendored scaffold through Copier into a temporary directory, then performs a safe merge: missing files are created, matching files are left alone, and conflicting files are preserved with details in `.llm-wiki/meta/install-report.md`.
+## Safety Model
+
+- `init` never overwrites existing target files.
+- If a managed file already exists with different content, it is left untouched and recorded in `.llm-wiki/meta/install-report.md`.
+- Re-running `init` creates only missing managed files and reports conflicts.
+- `status` reports missing managed files, changed managed files, root pointer state, scaffold version, and unresolved conflict reports.
 
 ## What This Starter Gives You
 
@@ -38,6 +74,13 @@ The installer creates `.llm-wiki/` in the target repo and adds a small root `AGE
 - Local validation for required frontmatter, registered source references, and relative Markdown links.
 - Optional search and wiki health review lanes for when the wiki grows beyond index-first navigation.
 
+## Working In A Generated Wiki
+
+- Start with `.llm-wiki/AGENTS.md`, then read the generated runbooks it points to.
+- Register reusable sources in `.llm-wiki/meta/source-registry.md` before relying on them in durable notes.
+- Keep heavyweight originals out of normal Git unless the generated source policy says otherwise.
+- Run `uv run python tools/validate_repo.py` from `.llm-wiki/` before handing work off.
+
 ## Common Workflows
 
 - Agent handoff: follow the [agent runbook](docs/agent-runbook.md) and [workflow](docs/workflow.md), then report changed files, verification, uncertainty, and next action.
@@ -46,9 +89,11 @@ The installer creates `.llm-wiki/` in the target repo and adds a small root `AGE
 - Local search: start with [wiki index](meta/index.md), then use the [search workflow](docs/search.md) and `tools/search_wiki.py` when navigation is not enough.
 - Wiki health review: run structural validation first, then use [wiki health lint](docs/wiki-health-lint.md) for advisory review signals.
 
-## Validation
+## Developing This Starter
 
-Run the repository validator and tests before handing off changes:
+Clone this repository when you want to change the installer, plugin scaffold, vendored template, docs, or local tooling.
+
+Run the repository validator and tests before handing off changes to this starter:
 
 ```bash
 uv run python tools/validate_repo.py
@@ -71,6 +116,13 @@ For PDF source ingest, install the optional PDF lane dependencies on demand:
 
 ```bash
 uv run --group pdf python tools/source-ingest/pdf/ingest_pdf.py --pdf <path> --source-id <id> --source-tier reference --title <title>
+```
+
+Run the local installer while developing:
+
+```bash
+uv run llm-wiki init /path/to/repo --yes
+uv run llm-wiki status /path/to/repo --json
 ```
 
 The validator checks structural rules only. Factual claims, source disagreement, stale notes, and review quality still require human or agent inspection.
