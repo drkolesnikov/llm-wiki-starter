@@ -27,6 +27,7 @@ If there is no active workstream or issue, do not invent one unless the task exp
 | External originals | external source vault | `raw/external/README.md` | `meta/source-registry.md`, `meta/log.md` |
 | Small raw sources | `raw/sources/YYYY-MM-DD_source-slug/` | `raw/sources/README.md` | `meta/source-registry.md`, `meta/log.md` |
 | PDF derivatives | `raw/derived/<source-id>/` | `tools/source-ingest/pdf/README.md` | `meta/source-registry.md`, `meta/index.md`, `meta/log.md` |
+| EPUB derivatives | `raw/derived/<source-id>/` | `tools/source-ingest/epub/README.md` | `meta/source-registry.md`, `meta/index.md`, `meta/log.md` |
 | Source summaries | source-linked note near relevant workflow | `docs/templates/source-summary.md` | `meta/source-registry.md`, `meta/index.md`, `meta/log.md` |
 | Knowledge notes | `knowledge/` | `docs/templates/knowledge-note.md` | `meta/index.md`, source links, `meta/log.md` |
 | Query-derived synthesis | smallest matching route, usually `knowledge/`, `reviews/`, or `projects/` | `docs/query-workflow.md`, `docs/templates/query-synthesis.md` | `meta/index.md`, source links, `meta/log.md` |
@@ -68,7 +69,7 @@ Use wiki health lint as an advisory review pass. `uv run python tools/validate_r
 
 ## CI Validation
 
-If the host repository has CI, preserve or add a validation path that runs `uv run python tools/validate_repo.py` from `.llm-wiki/`. Agents should still run the validator locally before handoff because CI is a backstop, not a substitute for local verification.
+If the host repository has CI, preserve or add a validation path that runs `uv run python tools/validate_repo.py` from `llm-wiki/`. Agents should still run the validator locally before handoff because CI is a backstop, not a substitute for local verification.
 
 ## Definition Of Done
 

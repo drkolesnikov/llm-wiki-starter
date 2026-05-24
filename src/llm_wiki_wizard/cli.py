@@ -11,7 +11,7 @@ from rich.console import Console
 from .installer import InstallerError, initialize, status as wiki_status
 
 
-app = typer.Typer(help="Spawn and inspect namespaced .llm-wiki workspaces.")
+app = typer.Typer(help="Spawn and inspect visible namespaced llm-wiki workspaces.")
 console = Console()
 
 
@@ -22,9 +22,9 @@ def init(
     yes: bool = typer.Option(False, "--yes", "-y", help="Run without confirmation."),
     json_output: bool = typer.Option(False, "--json", help="Print machine-readable JSON."),
 ) -> None:
-    """Initialize a .llm-wiki workspace in TARGET."""
+    """Initialize a llm-wiki workspace in TARGET."""
     if not yes and not dry_run and not json_output:
-        typer.confirm(f"Initialize .llm-wiki in {target}?", abort=True)
+        typer.confirm(f"Initialize llm-wiki in {target}?", abort=True)
     try:
         result = initialize(target, dry_run=dry_run)
     except InstallerError as exc:
@@ -52,7 +52,7 @@ def status(
     target: Path = typer.Argument(Path("."), help="Target repository directory."),
     json_output: bool = typer.Option(False, "--json", help="Print machine-readable JSON."),
 ) -> None:
-    """Report .llm-wiki installation state for TARGET."""
+    """Report llm-wiki installation state for TARGET."""
     try:
         result = wiki_status(target)
     except InstallerError as exc:

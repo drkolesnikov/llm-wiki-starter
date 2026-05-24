@@ -2,12 +2,12 @@
 artifact_type: index
 status: active
 owner: agents
-updated:
+updated: 2026-05-24
 ---
 
 # Wiki Index
 
-This index starts blank. Add only durable artifacts that should be easy for future agents to find.
+Add only durable artifacts that should be easy for future agents to find.
 
 ## Active Workstreams
 
@@ -23,7 +23,7 @@ None yet.
 
 ## Decisions
 
-None yet.
+- [Use OSS Tools For EPUB Ingest](../projects/epub-ingest-oss-tooling-decision.md)
 
 ## Sources
 
@@ -34,6 +34,7 @@ See [source registry](source-registry.md).
 - [Obsidian Conventions](../docs/obsidian-conventions.md)
 - [Query Workflow](../docs/query-workflow.md)
 - [Search Workflow](../docs/search.md)
+- [EPUB Source Ingest](../tools/source-ingest/epub/README.md)
 - [Wiki Health Lint](../docs/wiki-health-lint.md)
 
 ## Project Areas

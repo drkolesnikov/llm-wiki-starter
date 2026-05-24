@@ -2,7 +2,7 @@
 title: Source Ingest Policy
 artifact_type: source-ingest-policy
 status: active
-last_reviewed: 2026-05-20
+last_reviewed: 2026-05-24
 ---
 
 # Source Ingest Policy
@@ -53,6 +53,14 @@ uv run --group pdf python tools/source-ingest/pdf/ingest_pdf.py \
 ```
 
 The PDF lane enables Docling OCR, table structure extraction, page previews, and picture extraction by default. Use `--no-ocr`, `--no-render-pages`, and `--no-extract-figures` for faster scoped runs when those outputs are unnecessary.
+
+The EPUB lane is an OSS-tooling lane, not a custom parser lane. Use [EPUB Source Ingest](../tools/source-ingest/epub/README.md) and prefer:
+
+1. Pandoc for EPUB to Markdown or JSON conversion.
+2. Calibre CLI for metadata inspection, format normalization, and difficult ebook conversion cases.
+3. EbookLib as a reference option only, not the default path.
+
+Do not build a bespoke EPUB parser unless a separate decision records why existing OSS tools failed. EPUB originals should usually remain outside Git under `raw/external/` or another approved source vault. Commit only the smallest useful derivative set under `raw/derived/<source-id>/`.
 
 Roadmap lanes may later cover web pages, document files, transcripts, and structured datasets. Add those lanes only when they have clear source identity, derivative output, and registry rules.
 

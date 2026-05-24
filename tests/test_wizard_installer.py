@@ -40,15 +40,16 @@ class WizardInstallerTests(unittest.TestCase):
             target = Path(tmp)
             result = initialize(target)
 
-            self.assertTrue((target / ".llm-wiki" / "AGENTS.md").exists())
-            self.assertTrue((target / ".llm-wiki" / "docs").is_dir())
-            self.assertTrue((target / ".llm-wiki" / "meta" / "install.json").exists())
-            self.assertIn(".llm-wiki/AGENTS.md", (target / "AGENTS.md").read_text(encoding="utf-8"))
+            self.assertTrue((target / "llm-wiki" / "AGENTS.md").exists())
+            self.assertTrue((target / "llm-wiki" / "docs").is_dir())
+            self.assertTrue((target / "llm-wiki" / "meta" / "install.json").exists())
+            self.assertFalse((target / ".llm-wiki").exists())
+            self.assertIn("llm-wiki/AGENTS.md", (target / "AGENTS.md").read_text(encoding="utf-8"))
             self.assertEqual([], result.conflicts)
 
-            manifest = json.loads((target / ".llm-wiki" / "meta" / "install.json").read_text(encoding="utf-8"))
+            manifest = json.loads((target / "llm-wiki" / "meta" / "install.json").read_text(encoding="utf-8"))
             self.assertEqual(SCAFFOLD_VERSION, manifest["template_version"])
-            self.assertEqual(".llm-wiki", manifest["layout"])
+            self.assertEqual("llm-wiki", manifest["layout"])
             self.assertIn("AGENTS.md", manifest["managed_files"])
 
             current = status(target)
@@ -75,10 +76,35 @@ class WizardInstallerTests(unittest.TestCase):
             self.assertEqual(1, text.count(POINTER_END))
             self.assertEqual([], second.conflicts)
 
+    def test_init_updates_legacy_hidden_pointer_to_visible_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp)
+            (target / "AGENTS.md").write_text(
+                "\n".join(
+                    [
+                        "<!-- llm-wiki:start -->",
+                        "## LLM Wiki",
+                        "",
+                        "This repository has a namespaced LLM wiki at `.llm-wiki/`.",
+                        "Agents should read `.llm-wiki/AGENTS.md` before creating or changing durable wiki artifacts.",
+                        "<!-- llm-wiki:end -->",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            result = initialize(target)
+            text = (target / "AGENTS.md").read_text(encoding="utf-8")
+
+            self.assertEqual("updated", result.pointer_action)
+            self.assertIn("llm-wiki/AGENTS.md", text)
+            self.assertNotIn(".llm-wiki/AGENTS.md", text)
+
     def test_safe_merge_preserves_existing_wiki_file_and_reports_conflict(self):
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp)
-            existing = target / ".llm-wiki" / "AGENTS.md"
+            existing = target / "llm-wiki" / "AGENTS.md"
             existing.parent.mkdir(parents=True)
             existing.write_text("keep my local wiki rules\n", encoding="utf-8")
 
@@ -86,13 +112,13 @@ class WizardInstallerTests(unittest.TestCase):
 
             self.assertIn("AGENTS.md", result.conflicts)
             self.assertEqual("keep my local wiki rules\n", existing.read_text(encoding="utf-8"))
-            report = (target / ".llm-wiki" / "meta" / "install-report.md").read_text(encoding="utf-8")
+            report = (target / "llm-wiki" / "meta" / "install-report.md").read_text(encoding="utf-8")
             self.assertIn("`AGENTS.md`", report)
 
             current = status(target)
             self.assertIn("AGENTS.md", current.changed_managed_files)
             self.assertEqual(
-                [(target / ".llm-wiki" / "meta" / "install-report.md").resolve().as_posix()],
+                [(target / "llm-wiki" / "meta" / "install-report.md").resolve().as_posix()],
                 current.unresolved_conflict_reports,
             )
 
@@ -100,8 +126,8 @@ class WizardInstallerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp)
             initialize(target)
-            (target / ".llm-wiki" / "README.md").unlink()
-            (target / ".llm-wiki" / "AGENTS.md").write_text("changed\n", encoding="utf-8")
+            (target / "llm-wiki" / "README.md").unlink()
+            (target / "llm-wiki" / "AGENTS.md").write_text("changed\n", encoding="utf-8")
 
             current = status(target)
 
@@ -115,8 +141,30 @@ class WizardInstallerTests(unittest.TestCase):
 
             self.assertTrue(result.dry_run)
             self.assertGreater(len(result.created_files), 0)
-            self.assertFalse((target / ".llm-wiki").exists())
+            self.assertFalse((target / "llm-wiki").exists())
             self.assertFalse((target / "AGENTS.md").exists())
+
+    def test_status_recognizes_legacy_hidden_wiki(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp)
+            legacy = target / ".llm-wiki"
+            (legacy / "meta").mkdir(parents=True)
+            (legacy / "meta" / "install.json").write_text(
+                json.dumps(
+                    {
+                        "template_version": "0.1.0",
+                        "installer_version": "0.1.0",
+                        "layout": ".llm-wiki",
+                        "managed_files": {},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            current = status(target)
+
+            self.assertTrue(current.wiki_exists)
+            self.assertEqual("0.1.0", current.scaffold_version)
 
     def test_status_json_cli_fields(self):
         runner = CliRunner()
@@ -137,7 +185,7 @@ class WizardInstallerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp)
             initialize(target)
-            wiki_dir = target / ".llm-wiki"
+            wiki_dir = target / "llm-wiki"
 
             result = subprocess.run(
                 [sys.executable, str(wiki_dir / "tools" / "validate_repo.py")],
@@ -158,7 +206,7 @@ class PluginScaffoldTests(unittest.TestCase):
         )
 
         self.assertEqual("llm-wiki", manifest["name"])
-        self.assertEqual("0.1.0", manifest["version"])
+        self.assertEqual("0.1.1", manifest["version"])
         self.assertEqual("./skills/", manifest["skills"])
         self.assertEqual("LLM Wiki", manifest["interface"]["displayName"])
         self.assertIn("Write", manifest["interface"]["capabilities"])

@@ -17,8 +17,9 @@ from copier import run_copy
 from . import __version__
 
 
-SCAFFOLD_VERSION = "0.1.0"
-WIKI_DIRNAME = ".llm-wiki"
+SCAFFOLD_VERSION = "0.1.1"
+WIKI_DIRNAME = "llm-wiki"
+LEGACY_WIKI_DIRNAME = ".llm-wiki"
 INSTALL_MANIFEST = Path("meta/install.json")
 INSTALL_REPORT = Path("meta/install-report.md")
 COPIER_ANSWERS = ".copier-answers.yml"
@@ -30,8 +31,8 @@ POINTER_BLOCK = "\n".join(
         POINTER_START,
         "## LLM Wiki",
         "",
-        "This repository has a namespaced LLM wiki at `.llm-wiki/`.",
-        "Agents should read `.llm-wiki/AGENTS.md` before creating or changing durable wiki artifacts.",
+        "This repository has a namespaced LLM wiki at `llm-wiki/`.",
+        "Agents should read `llm-wiki/AGENTS.md` before creating or changing durable wiki artifacts.",
         POINTER_END,
         "",
     ]
@@ -154,6 +155,24 @@ def render_manifest(rendered: Path) -> dict[str, str]:
     }
 
 
+def wiki_dir_for_status(target: Path) -> Path:
+    current = target / WIKI_DIRNAME
+    if current.exists():
+        return current
+    legacy = target / LEGACY_WIKI_DIRNAME
+    if legacy.exists():
+        return legacy
+    return current
+
+
+def replace_pointer_block(text: str) -> str:
+    start = text.index(POINTER_START)
+    end = text.index(POINTER_END) + len(POINTER_END)
+    before = text[:start]
+    after = text[end:].lstrip("\n")
+    return before + POINTER_BLOCK + after
+
+
 def root_pointer_state(target: Path) -> str:
     agents = target / "AGENTS.md"
     if not agents.exists():
@@ -162,6 +181,11 @@ def root_pointer_state(target: Path) -> str:
     has_start = POINTER_START in text
     has_end = POINTER_END in text
     if has_start and has_end:
+        start = text.index(POINTER_START)
+        end = text.index(POINTER_END) + len(POINTER_END)
+        block = text[start:end]
+        if f"{LEGACY_WIKI_DIRNAME}/AGENTS.md" in block or f"{LEGACY_WIKI_DIRNAME}/" in block:
+            return "legacy"
         return "present"
     if has_start or has_end:
         return "conflict"
@@ -173,6 +197,11 @@ def apply_root_pointer(target: Path, *, dry_run: bool) -> str:
     state = root_pointer_state(target)
     if state == "present":
         return "present"
+    if state == "legacy":
+        if not dry_run:
+            text = agents.read_text(encoding="utf-8")
+            agents.write_text(replace_pointer_block(text), encoding="utf-8")
+        return "would_update" if dry_run else "updated"
     if state == "conflict":
         return "conflict"
     if state == "missing":
@@ -309,7 +338,7 @@ def read_install_manifest(wiki_dir: Path) -> dict[str, object]:
 
 def status(target: Path | str) -> StatusResult:
     target_path = resolve_target(target)
-    wiki_dir = target_path / WIKI_DIRNAME
+    wiki_dir = wiki_dir_for_status(target_path)
     manifest = read_install_manifest(wiki_dir)
     managed_files = manifest.get("managed_files")
     if not isinstance(managed_files, dict):
@@ -332,7 +361,7 @@ def status(target: Path | str) -> StatusResult:
     return StatusResult(
         target=target_path,
         wiki_exists=wiki_dir.exists(),
-        root_pointer_exists=root_pointer_state(target_path) == "present",
+        root_pointer_exists=root_pointer_state(target_path) in {"present", "legacy"},
         scaffold_version=str(manifest.get("template_version", "")),
         installer_version=str(manifest.get("installer_version", "")),
         missing_managed_files=missing,

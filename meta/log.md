@@ -2,10 +2,15 @@
 artifact_type: log
 status: active
 owner: agents
-updated: 2026-05-20
+updated: 2026-05-24
 ---
 
 # Maintenance Log
+
+## 2026-05-24
+
+- Added EPUB source-ingest guidance and an OSS tooling decision. Chose Pandoc as default EPUB converter, Calibre CLI as fallback, and EbookLib as a non-default reference to avoid custom parser maintenance.
+- Changed generated wiki installs from hidden `.llm-wiki/` to visible `llm-wiki/` directories for macOS Finder discoverability; kept status compatibility for legacy hidden installs.
 
 ## 2026-05-20
 

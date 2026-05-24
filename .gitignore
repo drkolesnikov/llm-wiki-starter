@@ -8,6 +8,7 @@ venv/
 
 # Heavy originals stay outside normal Git history.
 *.pdf
+*.epub
 raw/external/**
 !raw/external/
 !raw/external/README.md

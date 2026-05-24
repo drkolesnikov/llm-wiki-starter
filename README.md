@@ -1,6 +1,6 @@
 # LLM Wiki Starter
 
-Spawn a safe `.llm-wiki/` workspace inside any repository. LLM Wiki gives humans and agents a shared, inspectable place for source intake, document decomposition, durable knowledge notes, reviews, decisions, and project coordination without taking over the host repo.
+Spawn a safe, visible `llm-wiki/` workspace inside any repository. LLM Wiki gives humans and agents a shared, inspectable place for source intake, document decomposition, durable knowledge notes, reviews, decisions, and project coordination without taking over the host repo.
 
 The installer is intentionally conservative: it creates missing files, preserves existing files, and leaves a trace that future agents can validate.
 
@@ -35,31 +35,31 @@ uvx --from git+https://github.com/abrapacabra/llm-wiki-starter llm-wiki status /
 5. Read the generated agent entry point:
 
 ```bash
-sed -n '1,160p' /path/to/repo/.llm-wiki/AGENTS.md
+sed -n '1,160p' /path/to/repo/llm-wiki/AGENTS.md
 ```
 
 6. Validate the generated wiki:
 
 ```bash
-cd /path/to/repo/.llm-wiki
+cd /path/to/repo/llm-wiki
 uv run python tools/validate_repo.py
 ```
 
 ## What Gets Created
 
-The installer creates a namespaced wiki at `.llm-wiki/` and adds only one host-repo pointer outside that directory.
+The installer creates a namespaced wiki at `llm-wiki/` and adds only one host-repo pointer outside that directory. The directory is intentionally visible in macOS Finder and other file browsers.
 
-- `.llm-wiki/AGENTS.md`: the first-read file for future agents working in the wiki.
-- `.llm-wiki/docs/`, `.llm-wiki/meta/`, `.llm-wiki/raw/`, `.llm-wiki/knowledge/`, `.llm-wiki/reviews/`, `.llm-wiki/projects/`, and `.llm-wiki/tools/`: the wiki workspace.
-- `.llm-wiki/pyproject.toml` and `.llm-wiki/uv.lock`: an isolated uv project for wiki tooling, so host dependencies stay untouched.
-- `.llm-wiki/meta/install.json`: scaffold version, installer version, creation time, layout, and managed-file checksums.
-- `.llm-wiki/meta/install-report.md`: created files, unchanged files, root pointer action, and any conflicts.
-- `AGENTS.md` in the target repo root: a small pointer block telling agents to read `.llm-wiki/AGENTS.md`.
+- `llm-wiki/AGENTS.md`: the first-read file for future agents working in the wiki.
+- `llm-wiki/docs/`, `llm-wiki/meta/`, `llm-wiki/raw/`, `llm-wiki/knowledge/`, `llm-wiki/reviews/`, `llm-wiki/projects/`, and `llm-wiki/tools/`: the wiki workspace.
+- `llm-wiki/pyproject.toml` and `llm-wiki/uv.lock`: an isolated uv project for wiki tooling, so host dependencies stay untouched.
+- `llm-wiki/meta/install.json`: scaffold version, installer version, creation time, layout, and managed-file checksums.
+- `llm-wiki/meta/install-report.md`: created files, unchanged files, root pointer action, and any conflicts.
+- `AGENTS.md` in the target repo root: a small pointer block telling agents to read `llm-wiki/AGENTS.md`.
 
 ## Safety Model
 
 - `init` never overwrites existing target files.
-- If a managed file already exists with different content, it is left untouched and recorded in `.llm-wiki/meta/install-report.md`.
+- If a managed file already exists with different content, it is left untouched and recorded in `llm-wiki/meta/install-report.md`.
 - Re-running `init` creates only missing managed files and reports conflicts.
 - `status` reports missing managed files, changed managed files, root pointer state, scaffold version, and unresolved conflict reports.
 
@@ -69,17 +69,18 @@ The installer creates a namespaced wiki at `.llm-wiki/` and adds only one host-r
 - An agent workflow that starts from a visible workstream or issue and ends with traceable validation.
 - A source registry, source tiers, and ingest rules for keeping evidence explicit.
 - Docling-backed PDF ingest through the optional uv `pdf` dependency group.
-- A `llm-wiki` installer CLI plus local Codex plugin scaffold for creating `.llm-wiki/` workspaces inside other repositories.
+- Pandoc-first EPUB ingest guidance with Calibre CLI fallback and a local smoke test.
+- A `llm-wiki` installer CLI plus local Codex plugin scaffold for creating `llm-wiki/` workspaces inside other repositories.
 - Templates for knowledge notes, source summaries, reviews, decisions, query synthesis, workstreams, and agent tasks.
 - Local validation for required frontmatter, registered source references, and relative Markdown links.
 - Optional search and wiki health review lanes for when the wiki grows beyond index-first navigation.
 
 ## Working In A Generated Wiki
 
-- Start with `.llm-wiki/AGENTS.md`, then read the generated runbooks it points to.
-- Register reusable sources in `.llm-wiki/meta/source-registry.md` before relying on them in durable notes.
+- Start with `llm-wiki/AGENTS.md`, then read the generated runbooks it points to.
+- Register reusable sources in `llm-wiki/meta/source-registry.md` before relying on them in durable notes.
 - Keep heavyweight originals out of normal Git unless the generated source policy says otherwise.
-- Run `uv run python tools/validate_repo.py` from `.llm-wiki/` before handing work off.
+- Run `uv run python tools/validate_repo.py` from `llm-wiki/` before handing work off.
 
 ## Common Workflows
 

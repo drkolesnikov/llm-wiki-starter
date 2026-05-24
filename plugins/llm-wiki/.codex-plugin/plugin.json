@@ -1,6 +1,6 @@
 {
   "name": "llm-wiki",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Spawn and operate a namespaced LLM wiki inside any repository.",
   "author": {
     "name": "LLM Wiki Contributors",
@@ -19,7 +19,7 @@
   "interface": {
     "displayName": "LLM Wiki",
     "shortDescription": "Spawn and maintain agent-readable wiki workspaces.",
-    "longDescription": "Create a safe .llm-wiki workspace in a target repository, inspect its status, and route future source and knowledge work through the generated agent runbook.",
+    "longDescription": "Create a safe visible llm-wiki workspace in a target repository, inspect its status, and route future source and knowledge work through the generated agent runbook.",
     "developerName": "LLM Wiki Contributors",
     "category": "Productivity",
     "capabilities": [

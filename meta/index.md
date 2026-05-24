@@ -2,12 +2,12 @@
 artifact_type: index
 status: active
 owner: agents
-updated: 2026-05-20
+updated: 2026-05-24
 ---
 
 # Wiki Index
 
-This index starts blank. Add only durable artifacts that should be easy for future agents to find.
+Add only durable artifacts that should be easy for future agents to find.
 
 ## Active Workstreams
 
@@ -24,6 +24,7 @@ This index starts blank. Add only durable artifacts that should be easy for futu
 ## Decisions
 
 - [Adopt Docling for PDF Ingest](../projects/decisions/adopt-docling-pdf-ingest.md)
+- [Use OSS Tools For EPUB Ingest](../projects/epub-ingest-oss-tooling-decision.md)
 - [Package LLM Wiki as a Plugin and Installer](../projects/decisions/package-llm-wiki-plugin.md)
 
 ## Sources
@@ -37,6 +38,7 @@ See [source registry](source-registry.md).
 - [Obsidian Conventions](../docs/obsidian-conventions.md)
 - [Query Workflow](../docs/query-workflow.md)
 - [Search Workflow](../docs/search.md)
+- [EPUB Source Ingest](../tools/source-ingest/epub/README.md)
 - [Wiki Health Lint](../docs/wiki-health-lint.md)
 
 ## Project Areas
