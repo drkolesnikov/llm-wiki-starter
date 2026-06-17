@@ -15,35 +15,23 @@ decisions must be routed to their respective handlers (outside this module).
 
 from __future__ import annotations
 
-import importlib.util
 import re
 import sys
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-
 # ---------------------------------------------------------------------------
-# Load the registry module from tools/source-ingest/registry.py.
-# The "source-ingest" directory name contains a hyphen, so normal Python
-# package import machinery cannot resolve it.  We use importlib instead.
+# Shared source-ingest core (registry wiring).
 # ---------------------------------------------------------------------------
-_REGISTRY_MODULE_PATH = Path(__file__).resolve().parents[1] / "registry.py"
+# Ensure tools/source-ingest/ is importable regardless of working directory.
+_SI_DIR = Path(__file__).resolve().parents[1]
+if str(_SI_DIR) not in sys.path:
+    sys.path.insert(0, str(_SI_DIR))
 
+from core import wire_registry  # noqa: E402
 
-def _load_registry():
-    spec = importlib.util.spec_from_file_location("_web_emitter_registry", _REGISTRY_MODULE_PATH)
-    if spec is None or spec.loader is None:  # pragma: no cover
-        raise ImportError(f"Cannot load registry from {_REGISTRY_MODULE_PATH}")
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = mod
-    spec.loader.exec_module(mod)
-    return mod
-
-
-_registry_mod = _load_registry()
-_register_source = _registry_mod.register_source
-_RegistrationResult = _registry_mod.RegistrationResult
+_register_source = wire_registry()
 
 # Re-export so callers can import from a single place when convenient.
 __all__ = ["emit_reference_doc", "EmissionResult", "EmissionError"]

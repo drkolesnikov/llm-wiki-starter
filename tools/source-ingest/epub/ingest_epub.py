@@ -24,8 +24,6 @@ Usage
 from __future__ import annotations
 
 import argparse
-import importlib.util as _ilu
-import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -34,22 +32,19 @@ from typing import Any
 import yaml
 
 
-SOURCE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
 SOURCE_TIERS = ("primary", "secondary", "reference", "background", "restricted")
 
 # ---------------------------------------------------------------------------
-# Registry import — registry.py lives at tools/source-ingest/registry.py.
+# Shared source-ingest core (source-id validation + registry wiring)
 # ---------------------------------------------------------------------------
-_registry_path = Path(__file__).resolve().parents[1] / "registry.py"
-_registry_spec = _ilu.spec_from_file_location("_si_registry", _registry_path)
-if _registry_spec and _registry_spec.loader:
-    _registry_mod = _ilu.module_from_spec(_registry_spec)
-    import sys as _sys
-    _sys.modules.setdefault("_si_registry", _registry_mod)
-    _registry_spec.loader.exec_module(_registry_mod)  # type: ignore[attr-defined]
-    _register_source = _registry_mod.register_source
-else:
-    raise ImportError(f"Could not load source registry from {_registry_path}")
+# Ensure tools/source-ingest/ is importable regardless of working directory.
+_SI_DIR = Path(__file__).resolve().parents[1]
+if str(_SI_DIR) not in sys.path:
+    sys.path.insert(0, str(_SI_DIR))
+
+from core import validate_source_id, wire_registry, derived_output_path  # noqa: E402
+
+_register_source = wire_registry()
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -92,11 +87,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def require_source_id(source_id: str) -> None:
-    if not SOURCE_ID_RE.match(source_id):
-        raise SystemExit("source-id must use lowercase letters, digits, and dashes.")
-
-
 def yaml_text(data: dict[str, Any]) -> str:
     return yaml.safe_dump(data, sort_keys=False, allow_unicode=False)
 
@@ -106,7 +96,7 @@ def ingest_epub(
     *,
     registry_path: "Path | None" = None,
 ) -> Path:
-    require_source_id(args.source_id)
+    validate_source_id(args.source_id)
 
     epub_path = Path(args.epub).expanduser().resolve()
     if not epub_path.exists():
@@ -120,7 +110,7 @@ def ingest_epub(
         source_id=args.source_id,
         title=args.title,
         tier=args.source_tier,
-        derived_path=f"{args.output_root}/{args.source_id}",
+        derived_path=derived_output_path(args.output_root, args.source_id),
         locator=args.locator or None,
         format_has_locators=True,
         registry_path=resolved_registry,
