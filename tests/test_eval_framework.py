@@ -114,7 +114,9 @@ class SignalDiscoveryTests(unittest.TestCase):
             self.assertEqual(list(discovered)[-1], marker)
 
             model = load_repo_model(ROOT)
-            findings = run_suite(model)
+            # Filter to the probe so this stays count-stable once real signals
+            # (which may emit findings, incl. "skipped — no backend") are present.
+            findings = run_suite(model, selected=["zz99-probe"])
             self.assertEqual(1, len(findings))
             self.assertEqual("zz99-probe", findings[0].signal_id)
             self.assertEqual("probe", findings[0].explanation)
