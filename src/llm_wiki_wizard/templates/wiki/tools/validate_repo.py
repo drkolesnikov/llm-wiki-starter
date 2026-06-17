@@ -315,6 +315,24 @@ def health_report(sources: dict[str, dict[str, str]]) -> str:
     return "\n".join(lines)
 
 
+def eval_findings_report(model=None) -> str:
+    """Render the advisory eval suite (issue #35) as a report block.
+
+    Runs the auto-discovered signal suite from :mod:`tools.eval` against the
+    parsed :class:`RepoModel` and renders its findings. Eval findings are
+    **advisory**: this returns text only and never affects exit status.
+    """
+
+    try:  # script invocation: ``tools/`` is on sys.path[0]
+        from eval import render_report, run_suite
+    except ImportError:  # imported as ``tools.validate_repo``
+        from tools.eval import render_report, run_suite
+    if model is None:
+        model = _load_repo_model()
+    markdown, _machine = render_report(run_suite(model))
+    return "\n" + markdown
+
+
 def is_health_artifact(path: Path, frontmatter: dict[str, object]) -> bool:
     artifact_type = frontmatter.get("artifact_type")
     if artifact_type in {"index", "log", "source-registry"}:
@@ -510,6 +528,7 @@ def main(argv: list[str] | None = None) -> int:
         elif tier == "health":
             print("[tier: advisory-health]")
             print(health_report(registered_sources()))
+            print(eval_findings_report())
 
     if args.health_report and "health" not in tier_order:
         print(health_report(registered_sources()))
