@@ -68,28 +68,22 @@ KNOWN_OPTIONAL_FIELDS: frozenset[str] = frozenset(
 
 TEMPLATES_DIR = ROOT / "docs" / "templates"
 
-_FRONTMATTER_FENCE = "---"
 _HEADING_RE = re.compile(r"^##\s+(.+?)\s*$")
 
 
 def _template_artifact_type(text: str) -> str | None:
     """Return the ``artifact_type`` declared in a template's frontmatter."""
 
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != _FRONTMATTER_FENCE:
+    try:  # script invocation: ``tools/`` is on sys.path[0]
+        from frontmatter import parse_frontmatter
+    except ImportError:  # imported as ``tools.wiki_spec``
+        from tools.frontmatter import parse_frontmatter
+
+    fm = parse_frontmatter(text)
+    value = fm.data.get("artifact_type")
+    if not isinstance(value, str) or not value:
         return None
-    for line in lines[1:]:
-        if line.strip() == _FRONTMATTER_FENCE:
-            break
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        if key.strip() == "artifact_type":
-            value = value.strip()
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-                value = value[1:-1]
-            return value or None
-    return None
+    return value
 
 
 def _template_sections(text: str) -> list[str]:

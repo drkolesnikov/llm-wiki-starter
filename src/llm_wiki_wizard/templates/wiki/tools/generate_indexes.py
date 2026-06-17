@@ -16,7 +16,6 @@ Meta contract
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -24,40 +23,15 @@ from typing import Optional
 
 try:  # script invocation: ``tools/`` is on sys.path[0]
     from wiki_spec import SKIP_DIRS
+    from frontmatter import parse_frontmatter as _parse_frontmatter_deep
 except ImportError:  # imported as ``tools.generate_indexes``
     from tools.wiki_spec import SKIP_DIRS
+    from tools.frontmatter import parse_frontmatter as _parse_frontmatter_deep
 
 
-# ---------------------------------------------------------------------------
-# Frontmatter helpers (self-contained; no dependency on validate_repo so this
-# file can be copied to vendored templates without pulling in extra imports)
-# ---------------------------------------------------------------------------
-
-_FENCE = "---"
-_FIELD_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*?)\s*$")
-_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-
-
-def _clean(value: str) -> str:
-    value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
-        return value[1:-1]
-    return value
-
-
-def _parse_frontmatter(text: str) -> dict[str, str]:
-    """Return a flat dict of scalar frontmatter fields; ignore list items."""
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != _FENCE:
-        return {}
-    result: dict[str, str] = {}
-    for line in lines[1:]:
-        if line.strip() == _FENCE:
-            break
-        m = _FIELD_RE.match(line)
-        if m:
-            result[m.group(1)] = _clean(m.group(2))
-    return result
+def _parse_frontmatter(text: str) -> dict[str, object]:
+    """Return a frontmatter data dict by delegating to the canonical deep parser."""
+    return _parse_frontmatter_deep(text).data
 
 
 # ---------------------------------------------------------------------------
