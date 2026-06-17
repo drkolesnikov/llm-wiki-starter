@@ -48,6 +48,11 @@ try:
 except ImportError:
     from tools.generate_indexes import generate as _generate_indexes
 
+try:
+    from frontmatter import parse_frontmatter
+except ImportError:
+    from tools.frontmatter import parse_frontmatter
+
 
 # ---------------------------------------------------------------------------
 # Compatibility profile
@@ -106,64 +111,7 @@ class ExportResult:
 # Frontmatter helpers
 # ---------------------------------------------------------------------------
 
-_FENCE = "---"
-_FIELD_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*?)\s*$")
 _WIKILINK_RE = re.compile(r"\[\[([^\[\]]+)\]\]")
-
-
-def _parse_frontmatter_raw(text: str) -> tuple[dict[str, str], list[str], int]:
-    """Parse frontmatter returning (scalar_dict, raw_lines, body_start_lineno).
-
-    *raw_lines* contains every line inside the ``---`` fences (for round-trip
-    rendering of list-valued fields).  *body_start_lineno* is the 0-based index
-    of the first body line.
-    """
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != _FENCE:
-        return {}, [], 0
-    scalars: dict[str, str] = {}
-    raw: list[str] = []
-    end = len(lines)
-    for i, line in enumerate(lines[1:], start=1):
-        if line.strip() == _FENCE:
-            end = i + 1
-            break
-        raw.append(line)
-        m = _FIELD_RE.match(line)
-        if m:
-            val = m.group(2).strip()
-            if len(val) >= 2 and val[0] == val[-1] and val[0] in {'"', "'"}:
-                val = val[1:-1]
-            scalars[m.group(1)] = val
-    return scalars, raw, end
-
-
-def _parse_list_field(raw_lines: list[str], field_name: str) -> list[str]:
-    """Extract a YAML list field value from raw frontmatter lines."""
-    result = []
-    in_field = False
-    for line in raw_lines:
-        stripped = line.strip()
-        # Detect ``field_name:`` header (block list)
-        if stripped == f"{field_name}:" or stripped.startswith(f"{field_name}:"):
-            if stripped == f"{field_name}:":
-                in_field = True
-                continue
-            # Inline list: ``field: [a, b]``
-            rest = stripped[len(field_name) + 1:].strip()
-            if rest.startswith("["):
-                items = rest.strip("[] ").split(",")
-                return [i.strip().strip("\"'") for i in items if i.strip()]
-            in_field = False
-            continue
-        if in_field:
-            if stripped.startswith("- "):
-                result.append(stripped[2:].strip().strip("\"'"))
-            elif not stripped:
-                continue
-            elif not stripped.startswith("#"):
-                in_field = False
-    return result
 
 
 def _render_frontmatter(fields: dict[str, Any]) -> str:
@@ -205,8 +153,8 @@ def _build_title_index(wiki_root: Path) -> dict[str, Path]:
             text = md_path.read_text(encoding="utf-8")
         except OSError:
             continue
-        scalars, _, _ = _parse_frontmatter_raw(text)
-        title = scalars.get("title", "")
+        fm = parse_frontmatter(text)
+        title = str(fm.data.get("title", "") or "")
         if title:
             index[title.lower()] = md_path
         # aliases
@@ -266,9 +214,9 @@ def _export_artifact(
 ) -> None:
     """Translate one artifact from *src_path* to *out_path* using *profile*."""
     text = src_path.read_text(encoding="utf-8")
-    scalars, raw_lines, body_start = _parse_frontmatter_raw(text)
-    body_lines = text.splitlines()[body_start:]
-    body = "\n".join(body_lines)
+    fm = parse_frontmatter(text, preserve_raw=True)
+    scalars = {k: str(v) for k, v in fm.data.items() if not isinstance(v, list)}
+    body = fm.body
 
     namespace = profile["namespace"]
     governance_fields = profile["governance_fields"]
@@ -301,7 +249,10 @@ def _export_artifact(
     for gf in governance_fields:
         # List-valued governance fields
         if gf in ("tags", "sources", "linked_reviews", "aliases", "linked_concepts"):
-            items = _parse_list_field(raw_lines, gf)
+            raw_val = fm.data.get(gf)
+            items: list[str] = list(raw_val) if isinstance(raw_val, list) else (
+                [str(raw_val)] if raw_val else []
+            )
             if items:
                 # Resolve linked_concepts entries to relative links
                 if gf == "linked_concepts":
