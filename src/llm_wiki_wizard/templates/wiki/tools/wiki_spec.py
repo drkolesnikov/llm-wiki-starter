@@ -57,6 +57,15 @@ ALLOWED_SOURCE_TIERS = {
     "restricted",
 }
 
+# Optional frontmatter fields that are recognized by the spec.
+# Absence never causes an error; presence is never flagged as unknown.
+KNOWN_OPTIONAL_FIELDS: frozenset[str] = frozenset(
+    {
+        "description",  # one-sentence human summary of the artifact
+        "resource",     # canonical URI the artifact is about (URL, DOI, …)
+    }
+)
+
 TEMPLATES_DIR = ROOT / "docs" / "templates"
 
 _FRONTMATTER_FENCE = "---"
