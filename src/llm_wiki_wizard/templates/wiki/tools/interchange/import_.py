@@ -27,18 +27,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-_FENCE = "---"
-# Matches a YAML-ish frontmatter key: may include hyphens, underscores, and a
-# single embedded colon for extension keys like ``llm-wiki:status``.
-# Pattern: one or more key-char segments separated by at most one colon, followed
-# by `: ` (colon-space) as the key/value separator.
-# We use a partition on ': ' (colon-space) instead of a regex so that extension
-# keys like ``llm-wiki:status: active`` are parsed correctly.
-_FIELD_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_\-]*)\s*:\s*(.*?)\s*$")
+try:
+    from frontmatter import parse_frontmatter
+except ImportError:
+    from tools.frontmatter import parse_frontmatter
 
 # OKF core fields that we handle explicitly during import.
 _KNOWN_OKF_FIELDS = {
@@ -78,150 +70,14 @@ class ImportResult:
         }
 
 
-# ---------------------------------------------------------------------------
-# Frontmatter helpers  (minimal, self-contained — no shared import dependency)
-# ---------------------------------------------------------------------------
+def _collect_unknown_keys(data: dict[str, Any]) -> dict[str, Any]:
+    """Return key→value for frontmatter keys not in :data:`_KNOWN_OKF_FIELDS`.
 
-
-def _parse_frontmatter(text: str) -> tuple[dict[str, Any], list[str], int]:
-    """Parse YAML-ish frontmatter.
-
-    Returns (scalars, raw_lines_inside_fence, body_start_index).
-    List-valued fields appear as their raw ``field:`` line only; callers that
-    need list items call :func:`_parse_list_field`.
-
-    Parsing strategy: partition each line on ``': '`` (colon followed by a
-    space) as the key/value separator.  This correctly handles extension keys
-    like ``llm-wiki:status: active`` where the key contains an embedded colon.
-    A line with a trailing ``:`` and no value is treated as a block-list header
-    and recorded with value ``""``.  Indented lines (list items) are stored in
-    *raw* but not as scalars.
+    Uses the fully-parsed ``data`` dict from :func:`~tools.frontmatter.parse_frontmatter`
+    so extension keys (``ns:field``) and list-valued fields are already decoded
+    correctly — no raw-line scanning needed.
     """
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != _FENCE:
-        return {}, [], 0
-
-    scalars: dict[str, Any] = {}
-    raw: list[str] = []
-    end = len(lines)
-
-    for i, line in enumerate(lines[1:], start=1):
-        if line.strip() == _FENCE:
-            end = i + 1
-            break
-        raw.append(line)
-
-        # Skip indented lines (list items / nested values)
-        if line and line[0] in (" ", "\t"):
-            continue
-
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-
-        # Block-list header: ``key:`` with nothing after the colon
-        if stripped.endswith(":") and ": " not in stripped:
-            key = stripped[:-1].strip()
-            scalars[key] = ""
-            continue
-
-        # Normal scalar or extension-key scalar: split on first ': '
-        if ": " in stripped:
-            key, _, val = stripped.partition(": ")
-            key = key.strip()
-            val = val.strip()
-            if len(val) >= 2 and val[0] == val[-1] and val[0] in {'"', "'"}:
-                val = val[1:-1]
-            scalars[key] = val
-
-    return scalars, raw, end
-
-
-def _parse_list_field(raw_lines: list[str], field_name: str) -> list[str]:
-    """Extract a YAML block/inline list for *field_name* from raw frontmatter lines."""
-    result: list[str] = []
-    in_field = False
-    for line in raw_lines:
-        stripped = line.strip()
-        if stripped == f"{field_name}:" or stripped.startswith(f"{field_name}:"):
-            if stripped == f"{field_name}:":
-                in_field = True
-                continue
-            rest = stripped[len(field_name) + 1:].strip()
-            if rest.startswith("["):
-                items = rest.strip("[] ").split(",")
-                return [item.strip().strip("\"'") for item in items if item.strip()]
-            in_field = False
-            continue
-        if in_field:
-            if stripped.startswith("- "):
-                result.append(stripped[2:].strip().strip("\"'"))
-            elif stripped and not stripped.startswith("#"):
-                in_field = False
-    return result
-
-
-def _collect_unknown_keys(
-    scalars: dict[str, Any],
-    raw_lines: list[str],
-) -> dict[str, Any]:
-    """Return key→value for OKF fields not in :data:`_KNOWN_OKF_FIELDS`.
-
-    Extension keys (``ns:field``) are returned as-is; plain unknown scalar
-    keys are returned as-is.  List-valued unknown fields are collected as a
-    list of their items.
-
-    Uses the same partition-on-``': '`` strategy as :func:`_parse_frontmatter`
-    so extension keys like ``llm-wiki:status`` are handled correctly.
-    """
-    unknown: dict[str, Any] = {}
-    current_list_key: str | None = None
-    current_list_items: list[str] = []
-
-    for line in raw_lines:
-        stripped = line.strip()
-
-        # Collect list items for the current block-list key
-        if current_list_key is not None:
-            if stripped.startswith("- "):
-                current_list_items.append(stripped[2:].strip().strip("\"'"))
-                continue
-            if not stripped or stripped.startswith("#"):
-                continue
-            # Non-item, non-blank: flush the list and fall through to key parse
-            if current_list_key not in _KNOWN_OKF_FIELDS:
-                unknown[current_list_key] = list(current_list_items)
-            current_list_key = None
-            current_list_items = []
-
-        # Skip indented lines outside a list context
-        if line and line[0] in (" ", "\t"):
-            continue
-
-        if not stripped or stripped.startswith("#"):
-            continue
-
-        # Block-list header: ``key:`` with nothing after the colon
-        if stripped.endswith(":") and ": " not in stripped:
-            key = stripped[:-1].strip()
-            current_list_key = key
-            current_list_items = []
-            continue
-
-        # Scalar or extension-key scalar: partition on first ': '
-        if ": " in stripped:
-            key, _, val = stripped.partition(": ")
-            key = key.strip()
-            val = val.strip().strip("\"'")
-            current_list_key = None
-            if key not in _KNOWN_OKF_FIELDS:
-                unknown[key] = val
-
-    # Flush any trailing list
-    if current_list_key is not None and current_list_key not in _KNOWN_OKF_FIELDS:
-        unknown[current_list_key] = list(current_list_items)
-
-    return unknown
+    return {k: v for k, v in data.items() if k not in _KNOWN_OKF_FIELDS}
 
 
 def _check_body_links(body: str, bundle_root: Path, md_path: Path) -> list[str]:
@@ -335,9 +191,9 @@ def import_bundle(
             result.skipped += 1
             continue
 
-        scalars, raw_lines, body_start = _parse_frontmatter(text)
-        body_lines = text.splitlines()[body_start:]
-        body = "\n".join(body_lines)
+        fm = parse_frontmatter(text)
+        scalars = {k: str(v) for k, v in fm.data.items() if not isinstance(v, list)}
+        body = fm.body
 
         # ----------------------------------------------------------------
         # Map OKF fields → staged artifact fields
@@ -377,7 +233,7 @@ def import_bundle(
         # ----------------------------------------------------------------
         # Preserve unknown frontmatter keys (extension keys + plain unknowns)
         # ----------------------------------------------------------------
-        unknown_keys = _collect_unknown_keys(scalars, raw_lines)
+        unknown_keys = _collect_unknown_keys(fm.data)
         for uk, uv in unknown_keys.items():
             # Extension keys (e.g. ``llm-wiki:status``) are preserved verbatim.
             # Plain unknown keys get an ``okf-preserved:`` prefix to signal provenance.
