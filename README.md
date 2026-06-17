@@ -1,8 +1,8 @@
 # LLM Wiki Starter
 
-Spawn a safe, visible `llm-wiki/` workspace inside any repository. LLM Wiki gives humans and agents a shared, inspectable place for source intake, document decomposition, durable knowledge notes, reviews, decisions, and project coordination without taking over the host repo.
+Spawn a safe, visible `llm-wiki/` workspace inside any repository. LLM Wiki is a **governed, repo-native, OKF-compatible** workspace for agent-maintained project knowledge: it gives humans and agents a shared, inspectable place for source intake, document decomposition, durable knowledge notes, reviews, decisions, and project coordination without taking over the host repo.
 
-The installer is intentionally conservative: it creates missing files, preserves existing files, and leaves a trace that future agents can validate.
+The installer is intentionally conservative: it creates missing files, preserves existing files, and leaves a trace that future agents can validate. Current release: **v0.2.0**.
 
 ## Install In An Existing Repo
 
@@ -66,14 +66,28 @@ The installer creates a namespaced wiki at `llm-wiki/` and adds only one host-re
 ## What This Starter Gives You
 
 - A small Markdown knowledge base layout with clear boundaries between `raw/`, `knowledge/`, `reviews/`, `projects/`, `docs/`, and `meta/`.
-- An agent workflow that starts from a visible workstream or issue and ends with traceable validation.
-- A source registry, source tiers, and ingest rules for keeping evidence explicit.
-- Docling-backed PDF ingest through the optional uv `pdf` dependency group.
-- Pandoc-first EPUB ingest guidance with Calibre CLI fallback and a local smoke test.
+- A named, versioned **format specification** ([docs/llm-wiki-format.md](docs/llm-wiki-format.md)) — one contract for artifact types, frontmatter fields, allowed values, and conformance.
+- A **three-tier validator**: structural validity (blocking, default), portable-profile validity, and an advisory health tier, each invocable independently. New checks are add-a-file via an auto-discovered registry.
+- A model-agnostic **wiki health & evaluation suite** (`--tier health`): deterministic duplication, stale-claim, and disambiguation signals, plus optional LLM-backed grounding, contradiction, knowledge-F1, and cross-run-stability signals (off by default).
+- A self-contained, offline **governance-aware graph viewer** that colours nodes by review status and source tier and surfaces citations and uncertainty.
+- A source registry, source tiers, and ingest rules; **Docling-backed PDF** and **Pandoc-first EPUB** ingest, plus **guarded web ingestion** (explicit seed URLs with host/path/depth/page budgets) and an optional pluggable enrichment agent.
+- **Auto-generated, progressive `index.md` navigation** and an append-only maintenance log.
+- **Write-time and ingest-time guards** (a pre-commit hook + CI gate) that make destructive edits harder than safe ones.
+- Optional **OKF v0.1 interchange**: export the wiki as an OKF bundle (governance metadata carried as extension keys) and import external bundles into a quarantined `needs-review` staging area.
 - A `llm-wiki` installer CLI plus local Codex plugin scaffold for creating `llm-wiki/` workspaces inside other repositories.
 - Templates for knowledge notes, source summaries, reviews, decisions, query synthesis, workstreams, and agent tasks.
-- Local validation for required frontmatter, registered source references, and relative Markdown links.
-- Optional search and wiki health review lanes for when the wiki grows beyond index-first navigation.
+
+## CLI Commands
+
+The `llm-wiki` CLI (via `uvx` or `uv run`) exposes:
+
+- `init` / `status` — scaffold a `llm-wiki/` workspace into a host repo and report install state.
+- `index` (alias `reindex`) — regenerate per-directory `index.md` navigation and append a maintenance-log entry.
+- `visualize` — render the self-contained, offline governance-aware HTML graph viewer.
+- `enrich` — draft a `needs-review` source summary or note from an already-ingested source (requires a configured model provider; reports disabled otherwise).
+- `export` / `import` — render the wiki as an OKF v0.1 bundle, or import an external bundle into staging.
+
+Run `<command> --help` for options; all support `--json` for machine-readable output.
 
 ## Working In A Generated Wiki
 
@@ -101,10 +115,16 @@ uv run python tools/validate_repo.py
 uv run python -m unittest discover -s tests -v
 ```
 
-For advisory wiki health signals:
+When you change any file under `tools/`, re-sync the vendored installer template so a generated wiki ships the current tooling (the CI drift gate enforces this):
 
 ```bash
-uv run python tools/validate_repo.py --health-report
+uv run python tools/sync_vendored.py
+```
+
+For advisory wiki health and evaluation signals:
+
+```bash
+uv run python tools/validate_repo.py --tier health
 ```
 
 For a quick search smoke test:
@@ -126,7 +146,7 @@ uv run llm-wiki init /path/to/repo --yes
 uv run llm-wiki status /path/to/repo --json
 ```
 
-The validator checks structural rules only. Factual claims, source disagreement, stale notes, and review quality still require human or agent inspection.
+The default (structural) tier is blocking and unchanged for CI; the portable-profile and advisory-health tiers are invocable on demand. Evaluation signals are advisory, and the LLM-backed ones are off by default and model-agnostic — factual claims, source disagreement, stale notes, and review quality still benefit from human or agent inspection.
 
 ## Repository Shape
 
@@ -145,7 +165,7 @@ reviews/                   Validation and critique artifacts
 projects/                  Workstreams, milestones, and project coordination
 plugins/                   Local Codex plugin packages
 src/                       Python installer package and vendored scaffold template
-tools/                     Validation, search, and source-ingest utilities
+tools/                     Validation, evaluation, viewer, interchange, search, and source-ingest utilities
 tests/                     Test coverage for local tooling
 ```
 
