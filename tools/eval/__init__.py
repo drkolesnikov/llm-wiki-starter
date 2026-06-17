@@ -36,11 +36,15 @@ from __future__ import annotations
 
 import importlib
 import json
-import pkgutil
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from typing import List, Optional, Protocol, Sequence, Tuple, runtime_checkable
+
+try:  # script invocation: ``tools/`` is on sys.path[0]
+    from _registry import discover_modules
+except ImportError:  # imported as ``tools.eval``
+    from tools._registry import discover_modules
 
 
 #: A finding either comes from a deterministic rule or an LLM judge.
@@ -134,16 +138,7 @@ def discover_signals() -> List[DiscoveredSignal]:
     """
 
     signals_pkg = _signals_package()
-    discovered: List[DiscoveredSignal] = []
-    for module_info in sorted(pkgutil.iter_modules(signals_pkg.__path__), key=lambda m: m.name):
-        name = module_info.name
-        if name.startswith("_"):
-            continue
-        module = importlib.import_module(f"{signals_pkg.__name__}.{name}")
-        signal = getattr(module, "SIGNAL", None)
-        if signal is not None:
-            discovered.append((name, signal))
-    return discovered
+    return discover_modules(signals_pkg.__path__, signals_pkg.__name__, "SIGNAL", sort=True)
 
 
 def run_suite(model, *, selected: Sequence[str] | None = None) -> List[Finding]:

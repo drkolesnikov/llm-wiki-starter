@@ -27,6 +27,7 @@ _REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
+import tools.eval.llm_signal as llm_signal_mod
 from tools.eval import Finding
 from tools.llm_provider import ModelProvider
 from tools.eval.signals import knowledge_f1 as kf1_module
@@ -146,7 +147,7 @@ class TestDisabledProvider(unittest.TestCase):
     def _run_with_disabled(self):
         from tools.llm_provider import DisabledProvider
         model = _make_model()
-        with patch.object(kf1_module, "get_provider", return_value=DisabledProvider()):
+        with patch.object(llm_signal_mod, "get_provider", return_value=DisabledProvider()):
             return SIGNAL.run(model)
 
     def test_returns_one_finding(self):
@@ -180,7 +181,7 @@ class TestPrecisionRecallF1(unittest.TestCase):
             source_facts = SOURCE_FACTS
         stub = _StubProvider(artifact_facts, source_facts)
         model = _make_model()
-        with patch.object(kf1_module, "get_provider", return_value=stub):
+        with patch.object(llm_signal_mod, "get_provider", return_value=stub):
             return SIGNAL.run(model)
 
     def test_returns_one_finding_per_artifact(self):
@@ -240,20 +241,20 @@ class TestEdgeCases(unittest.TestCase):
     def test_empty_model_returns_no_findings(self):
         model = _make_empty_model()
         from tools.llm_provider import DisabledProvider
-        with patch.object(kf1_module, "get_provider", return_value=DisabledProvider()):
+        with patch.object(llm_signal_mod, "get_provider", return_value=DisabledProvider()):
             # Disabled, but with no artifacts the disabled path still fires.
             pass
         # Use a stub enabled provider with an empty artifact list.
         stub = _StubProvider([], [])
         stub.enabled = True
-        with patch.object(kf1_module, "get_provider", return_value=stub):
+        with patch.object(llm_signal_mod, "get_provider", return_value=stub):
             findings = SIGNAL.run(model)
         self.assertEqual([], findings)
 
     def test_artifact_without_sources_skipped(self):
         model = _make_no_sources_model()
         stub = _StubProvider([], [])
-        with patch.object(kf1_module, "get_provider", return_value=stub):
+        with patch.object(llm_signal_mod, "get_provider", return_value=stub):
             findings = SIGNAL.run(model)
         self.assertEqual([], findings)
 

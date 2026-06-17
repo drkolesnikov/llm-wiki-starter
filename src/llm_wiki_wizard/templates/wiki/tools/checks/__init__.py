@@ -19,9 +19,12 @@ skipped by discovery.
 
 from __future__ import annotations
 
-import importlib
-import pkgutil
 from typing import Callable, List, Tuple
+
+try:  # script invocation: ``tools/`` is on sys.path[0]
+    from _registry import discover_modules
+except ImportError:  # imported as ``tools.checks``
+    from tools._registry import discover_modules
 
 
 # A discovered check: (module_name, check_callable).
@@ -36,16 +39,7 @@ def discover_checks() -> List[DiscoveredCheck]:
     Private modules (leading underscore) are ignored.
     """
 
-    discovered: List[DiscoveredCheck] = []
-    for module_info in sorted(pkgutil.iter_modules(__path__), key=lambda m: m.name):
-        name = module_info.name
-        if name.startswith("_"):
-            continue
-        module = importlib.import_module(f"{__name__}.{name}")
-        check = getattr(module, "check", None)
-        if callable(check):
-            discovered.append((name, check))
-    return discovered
+    return discover_modules(__path__, __name__, "check", sort=True)
 
 
 def run_checks(model: object, errors: List[str]) -> None:

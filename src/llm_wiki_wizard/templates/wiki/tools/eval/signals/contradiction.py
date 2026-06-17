@@ -22,10 +22,10 @@ from typing import List
 
 try:
     from tools.eval import Finding
-    from tools.llm_provider import get_provider
+    from tools.eval.llm_signal import LLMSignal
 except ImportError:  # script invocation: ``tools/`` on sys.path
     from eval import Finding  # type: ignore[no-redef]
-    from llm_provider import get_provider  # type: ignore[no-redef]
+    from eval.llm_signal import LLMSignal  # type: ignore[no-redef]
 
 _SIGNAL_ID = "G3-contradiction"
 _FINDING_CLASS = "llm"
@@ -51,25 +51,13 @@ def _check_pair(provider, text_a: str, text_b: str, label_a: str, label_b: str) 
     return None
 
 
-class _ContradictionSignal:
+class _ContradictionSignal(LLMSignal):
     """G3 — contradiction (LLM-backed)."""
 
     id = _SIGNAL_ID
     finding_class = _FINDING_CLASS
 
-    def run(self, model) -> List[Finding]:  # noqa: ANN001
-        provider = get_provider()
-        if not provider.enabled:
-            return [
-                Finding(
-                    signal_id=self.id,
-                    finding_class=self.finding_class,
-                    severity="info",
-                    implicated=[],
-                    explanation="skipped — no backend",
-                )
-            ]
-
+    def _run_enabled(self, model, provider) -> List[Finding]:
         findings: List[Finding] = []
 
         # Build a list of (relative_path_str, body_text) for LLM-checkable types.

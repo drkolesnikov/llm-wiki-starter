@@ -31,7 +31,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from tools.eval import Finding
-from tools.llm_provider import get_provider
+from tools.eval.llm_signal import LLMSignal
 
 
 # ---------------------------------------------------------------------------
@@ -136,13 +136,13 @@ _SIGNAL_ID = "G4-knowledge-f1"
 _FINDING_CLASS = "llm"
 
 
-class _KnowledgeF1Signal:
+class _KnowledgeF1Signal(LLMSignal):
     """Content precision/recall signal (LLM-backed)."""
 
     id: str = _SIGNAL_ID
     finding_class: str = _FINDING_CLASS
 
-    def run(self, model) -> List[Finding]:  # noqa: ANN001
+    def _run_enabled(self, model, provider) -> List[Finding]:
         """Evaluate every artifact with citations and return findings.
 
         Parameters
@@ -151,25 +151,14 @@ class _KnowledgeF1Signal:
             A :class:`tools.wiki_model.RepoModel`.  Each artifact's
             ``body`` text and its first cited source's ``body`` text are
             passed to the LLM.
+        provider:
+            An enabled :class:`tools.llm_provider.ModelProvider`.
 
         Returns
         -------
         list[Finding]
-            One finding per evaluated artifact, or a single "skipped"
-            finding when the provider is disabled.
+            One finding per evaluated artifact.
         """
-        provider = get_provider()
-        if not provider.enabled:
-            return [
-                Finding(
-                    signal_id=self.id,
-                    finding_class=self.finding_class,
-                    severity="info",
-                    implicated=[],
-                    explanation="skipped — no backend",
-                )
-            ]
-
         findings: List[Finding] = []
 
         # Walk every artifact that has at least one cited source.

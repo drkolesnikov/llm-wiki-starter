@@ -11,22 +11,21 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+from typing import List, Tuple, Any
 
 import typer
+
+from llm_wiki_wizard._registry import discover_modules
 
 
 def register_all(app: typer.Typer) -> None:
     """Discover sibling command modules and register each onto ``app``.
 
     Every module in this package that defines a callable ``register(app)`` is
-    imported and invoked. Modules whose names start with an underscore are
-    skipped so private helpers can live alongside commands.
+    imported and invoked in deterministic (sorted) order. Modules whose names
+    start with an underscore are skipped so private helpers can live alongside
+    commands.
     """
-    for module_info in pkgutil.iter_modules(__path__):
-        name = module_info.name
-        if name.startswith("_"):
-            continue
-        module = importlib.import_module(f"{__name__}.{name}")
-        register = getattr(module, "register", None)
+    for _name, register in discover_modules(__path__, __name__, "register", sort=True):
         if callable(register):
             register(app)

@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Create reusable wiki source artifacts from a local PDF."""
+"""Create reusable wiki source artifacts from a local PDF.
+
+This adapter handles only Docling-specific concerns (conversion, chunking,
+image extraction).  Cross-format concerns (source-id validation, registry
+wiring, derived-path construction) are delegated to
+``tools/source-ingest/core.py``.
+"""
 
 from __future__ import annotations
 
@@ -16,27 +22,23 @@ from typing import Any, Iterable
 
 import yaml
 
+# ---------------------------------------------------------------------------
+# Shared source-ingest core (source-id validation + registry wiring)
+# ---------------------------------------------------------------------------
+# Ensure tools/source-ingest/ is importable regardless of working directory.
+_SI_DIR = Path(__file__).resolve().parents[1]
+if str(_SI_DIR) not in sys.path:
+    sys.path.insert(0, str(_SI_DIR))
 
-SOURCE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
+from core import validate_source_id, wire_registry, derived_output_path  # noqa: E402
+
+_register_source = wire_registry()
+
+# ---------------------------------------------------------------------------
+# PDF-adapter constants (format-specific; not shared with epub/web)
+# ---------------------------------------------------------------------------
 SOURCE_TIERS = ("primary", "secondary", "reference", "background", "restricted")
 OUTPUT_DIRS = ("pages", "tables", "figures", "source-maps")
-
-# ---------------------------------------------------------------------------
-# Registry import — registry.py lives at tools/source-ingest/registry.py.
-# We load it via importlib so this script works whether the repo root is on
-# sys.path or not.
-# ---------------------------------------------------------------------------
-import importlib.util as _ilu
-
-_registry_path = Path(__file__).resolve().parents[1] / "registry.py"
-_registry_spec = _ilu.spec_from_file_location("_si_registry", _registry_path)
-if _registry_spec and _registry_spec.loader:
-    _registry_mod = _ilu.module_from_spec(_registry_spec)
-    sys.modules.setdefault("_si_registry", _registry_mod)
-    _registry_spec.loader.exec_module(_registry_mod)  # type: ignore[attr-defined]
-    _register_source = _registry_mod.register_source
-else:
-    raise ImportError(f"Could not load source registry from {_registry_path}")
 
 
 @dataclass(frozen=True)
@@ -120,8 +122,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def require_source_id(source_id: str) -> None:
-    if not SOURCE_ID_RE.match(source_id):
-        raise SystemExit("source-id must use lowercase letters, digits, and dashes.")
+    """Validate *source_id*; delegates to :func:`core.validate_source_id`."""
+    validate_source_id(source_id)
 
 
 def import_docling() -> DoclingRuntime:
@@ -810,7 +812,7 @@ def ingest_pdf(
             source_id=args.source_id,
             title=args.title,
             tier=args.source_tier,
-            derived_path=f"{args.output_root}/{args.source_id}",
+            derived_path=derived_output_path(args.output_root, args.source_id),
             locator=locator,
             format_has_locators=True,
             registry_path=resolved_registry,

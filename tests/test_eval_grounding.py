@@ -1,8 +1,8 @@
 """Tests for the G1-grounding eval signal.
 
 Uses a stub ModelProvider (not pytest, unittest only) injected via
-unittest.mock.patch on the signal module's ``get_provider`` reference so the
-real get_provider() is never called.
+unittest.mock.patch on the ``tools.eval.llm_signal`` module's ``get_provider``
+reference (the single import point after the LLMSignal base migration).
 """
 
 import unittest
@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from unittest.mock import patch
 
+import tools.eval.llm_signal as llm_signal_mod
 from tools.eval import Finding
 from tools.eval.signals import grounding as grounding_mod
 from tools.llm_provider import ModelProvider
@@ -92,7 +93,7 @@ class GroundingSignalStubProviderTests(unittest.TestCase):
 
     def _run_with_stub(self, model: RepoModel, responses: list[str]) -> list[Finding]:
         stub = _StubProvider(responses)
-        with patch.object(grounding_mod, "get_provider", return_value=stub):
+        with patch.object(llm_signal_mod, "get_provider", return_value=stub):
             return grounding_mod.SIGNAL.run(model)
 
     def test_ungrounded_claim_produces_finding(self):
@@ -141,7 +142,7 @@ class GroundingSignalExitStatusTests(unittest.TestCase):
     def test_run_with_stub_does_not_raise(self):
         stub = _StubProvider(["ungrounded", "ungrounded"])
         model = _make_model("First claim. Second claim.")
-        with patch.object(grounding_mod, "get_provider", return_value=stub):
+        with patch.object(llm_signal_mod, "get_provider", return_value=stub):
             try:
                 findings = grounding_mod.SIGNAL.run(model)
             except Exception as exc:  # noqa: BLE001

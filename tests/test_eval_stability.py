@@ -19,6 +19,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+import tools.eval.llm_signal as llm_signal_mod  # noqa: E402
 from tools.eval import Finding, Signal  # noqa: E402
 from tools.llm_provider import ModelProvider  # noqa: E402
 from tools.wiki_model import Artifact, RepoModel  # noqa: E402
@@ -99,7 +100,7 @@ class TestStabilitySignalDisabled(unittest.TestCase):
         self.signal = SIGNAL
 
     def test_disabled_returns_single_skipped_finding(self):
-        with mock.patch("tools.eval.signals.stability.get_provider", return_value=_DisabledProvider()):
+        with mock.patch("tools.eval.llm_signal.get_provider", return_value=_DisabledProvider()):
             model = _make_model(Path("/tmp"), [])
             findings = self.signal.run(model)
 
@@ -112,7 +113,7 @@ class TestStabilitySignalDisabled(unittest.TestCase):
         self.assertIn("no backend", f.explanation)
 
     def test_disabled_finding_severity_is_info(self):
-        with mock.patch("tools.eval.signals.stability.get_provider", return_value=_DisabledProvider()):
+        with mock.patch("tools.eval.llm_signal.get_provider", return_value=_DisabledProvider()):
             model = _make_model(Path("/tmp"), [])
             findings = self.signal.run(model)
 
@@ -130,7 +131,7 @@ class TestStabilitySignalSubstantiveDrift(unittest.TestCase):
         artifact = _make_artifact(tmp_path, "notes.md", current_content)
         model = _make_model(tmp_path, [artifact])
         with (
-            mock.patch("tools.eval.signals.stability.get_provider", return_value=_SubstantiveProvider()),
+            mock.patch("tools.eval.llm_signal.get_provider", return_value=_SubstantiveProvider()),
             mock.patch(
                 "tools.eval.signals.stability._git_show_prior",
                 return_value=prior_content,
@@ -181,7 +182,7 @@ class TestStabilitySignalCosmeticChurn(unittest.TestCase):
             artifact = _make_artifact(tmp, "notes.md", "# Article\n\nSame content.\n")
             model = _make_model(tmp, [artifact])
             with (
-                mock.patch("tools.eval.signals.stability.get_provider", return_value=_CosmeticProvider()),
+                mock.patch("tools.eval.llm_signal.get_provider", return_value=_CosmeticProvider()),
                 mock.patch(
                     "tools.eval.signals.stability._git_show_prior",
                     return_value="# Article\n\nSame content.  ",  # trailing space = cosmetic
@@ -207,7 +208,7 @@ class TestStabilitySignalNoChanges(unittest.TestCase):
             artifact = _make_artifact(tmp, "notes.md", content)
             model = _make_model(tmp, [artifact])
             with (
-                mock.patch("tools.eval.signals.stability.get_provider", return_value=_SubstantiveProvider()),
+                mock.patch("tools.eval.llm_signal.get_provider", return_value=_SubstantiveProvider()),
                 mock.patch(
                     "tools.eval.signals.stability._git_show_prior",
                     return_value=content,  # same as current → no diff
@@ -224,7 +225,7 @@ class TestStabilitySignalNoChanges(unittest.TestCase):
             artifact = _make_artifact(tmp, "new.md", "# New file\n")
             model = _make_model(tmp, [artifact])
             with (
-                mock.patch("tools.eval.signals.stability.get_provider", return_value=_SubstantiveProvider()),
+                mock.patch("tools.eval.llm_signal.get_provider", return_value=_SubstantiveProvider()),
                 mock.patch(
                     "tools.eval.signals.stability._git_show_prior",
                     return_value=None,  # no prior → skip

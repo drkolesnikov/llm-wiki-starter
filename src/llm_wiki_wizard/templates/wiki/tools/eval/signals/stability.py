@@ -18,10 +18,10 @@ from typing import List
 
 try:
     from tools.eval import Finding
-    from tools.llm_provider import get_provider
+    from tools.eval.llm_signal import LLMSignal
 except ImportError:  # script invocation with tools/ on sys.path
     from eval import Finding  # type: ignore[no-redef]
-    from llm_provider import get_provider  # type: ignore[no-redef]
+    from eval.llm_signal import LLMSignal  # type: ignore[no-redef]
 
 _SIGNAL_ID = "G7-stability"
 _FINDING_CLASS = "llm"
@@ -58,23 +58,11 @@ def _git_show_prior(path: Path, root: Path) -> str | None:
         return None
 
 
-class _StabilitySignal:
+class _StabilitySignal(LLMSignal):
     id: str = _SIGNAL_ID
     finding_class: str = _FINDING_CLASS
 
-    def run(self, model) -> List[Finding]:  # model: RepoModel
-        provider = get_provider()
-        if not provider.enabled:
-            return [
-                Finding(
-                    signal_id=self.id,
-                    finding_class=self.finding_class,
-                    severity="info",
-                    implicated=[],
-                    explanation="skipped — no backend",
-                )
-            ]
-
+    def _run_enabled(self, model, provider) -> List[Finding]:
         findings: List[Finding] = []
         for artifact in model.artifacts:
             prior_text = _git_show_prior(artifact.path, model.root)

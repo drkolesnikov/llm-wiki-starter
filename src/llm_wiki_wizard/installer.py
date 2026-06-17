@@ -37,11 +37,13 @@ COPIER_ANSWERS = ".copier-answers.yml"
 #   - hooks/ci_preservation_gate.py   — CI gate adapter; requires git/GitHub.
 #   - hooks/pre_commit_preservation.py — pre-commit adapter; CI-specific.
 VENDORED_TOOL_FILES: tuple[str, ...] = (
+    "_registry.py",
     "checks/__init__.py",
     "checks/c10_frontmatter.py",
     "checks/c20_registry.py",
     "checks/c30_links.py",
     "eval/__init__.py",
+    "eval/llm_signal.py",
     "eval/signals/__init__.py",
     "eval/signals/contradiction.py",
     "eval/signals/disambiguation.py",
@@ -58,6 +60,7 @@ VENDORED_TOOL_FILES: tuple[str, ...] = (
     "llm_provider.py",
     "preservation.py",
     "search_wiki.py",
+    "source-ingest/core.py",
     "source-ingest/epub/ingest_epub.py",
     "source-ingest/pdf/ingest_pdf.py",
     "source-ingest/registry.py",

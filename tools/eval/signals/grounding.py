@@ -14,10 +14,10 @@ import re
 
 try:
     from tools.eval import Finding
-    from tools.llm_provider import get_provider
+    from tools.eval.llm_signal import LLMSignal
 except ImportError:  # script invocation: ``tools/`` is on sys.path[0]
-    from eval import Finding
-    from llm_provider import get_provider
+    from eval import Finding  # type: ignore[no-redef]
+    from eval.llm_signal import LLMSignal  # type: ignore[no-redef]
 
 
 _SIGNAL_ID = "G1-grounding"
@@ -62,24 +62,11 @@ def _source_titles(sources: dict[str, dict[str, str]]) -> str:
     return "\n".join(lines)
 
 
-class _GroundingSignal:
+class _GroundingSignal(LLMSignal):
     id: str = _SIGNAL_ID
     finding_class: str = _FINDING_CLASS
 
-    def run(self, model) -> list[Finding]:  # type: ignore[override]
-        provider = get_provider()
-
-        if not provider.enabled:
-            return [
-                Finding(
-                    signal_id=self.id,
-                    finding_class=self.finding_class,
-                    severity="info",
-                    implicated=[],
-                    explanation="skipped — no backend",
-                )
-            ]
-
+    def _run_enabled(self, model, provider) -> list[Finding]:
         source_block = _source_titles(model.sources)
         findings: list[Finding] = []
 

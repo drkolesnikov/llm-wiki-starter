@@ -18,6 +18,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+import tools.eval.llm_signal as llm_signal_mod
 from tools.eval import Finding
 from tools.eval.signals import contradiction as _mod
 from tools.llm_provider import DisabledProvider, ModelProvider
@@ -74,7 +75,7 @@ class TestDisabledProvider(unittest.TestCase):
 
     def test_skipped_finding_returned(self):
         disabled = DisabledProvider()
-        with mock.patch.object(_mod, "get_provider", return_value=disabled):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=disabled):
             findings = _mod.SIGNAL.run(_stub_model())
         self.assertEqual(1, len(findings))
         finding = findings[0]
@@ -86,13 +87,13 @@ class TestDisabledProvider(unittest.TestCase):
 
     def test_skipped_finding_severity_is_info(self):
         disabled = DisabledProvider()
-        with mock.patch.object(_mod, "get_provider", return_value=disabled):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=disabled):
             findings = _mod.SIGNAL.run(_stub_model())
         self.assertEqual("info", findings[0].severity)
 
     def test_skipped_implicated_is_empty(self):
         disabled = DisabledProvider()
-        with mock.patch.object(_mod, "get_provider", return_value=disabled):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=disabled):
             findings = _mod.SIGNAL.run(_stub_model())
         self.assertEqual([], findings[0].implicated)
 
@@ -113,7 +114,7 @@ class TestContradictionDetection(unittest.TestCase):
         art_b = _stub_artifact("notes/b.md", "knowledge-note", "The sky is blue.")
         model = _stub_model(artifacts=[art_a, art_b])
         provider = _EnabledStubProvider(responses={"": "CONTRADICTION: sky colour mismatch"})
-        with mock.patch.object(_mod, "get_provider", return_value=provider):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=provider):
             findings = _mod.SIGNAL.run(model)
         self.assertGreater(len(findings), 0)
         finding = findings[0]
@@ -128,7 +129,7 @@ class TestContradictionDetection(unittest.TestCase):
         art_b = _stub_artifact("notes/b.md", "knowledge-note", "X is false.")
         model = _stub_model(artifacts=[art_a, art_b])
         provider = _EnabledStubProvider(responses={"": "CONTRADICTION: direct negation"})
-        with mock.patch.object(_mod, "get_provider", return_value=provider):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=provider):
             findings = _mod.SIGNAL.run(model)
         self.assertTrue(
             any("conflicted" in f.explanation for f in findings),
@@ -140,7 +141,7 @@ class TestContradictionDetection(unittest.TestCase):
         art_b = _stub_artifact("notes/b.md", "knowledge-note", "Berlin is the capital of Germany.")
         model = _stub_model(artifacts=[art_a, art_b])
         provider = _EnabledStubProvider()  # always returns "OK"
-        with mock.patch.object(_mod, "get_provider", return_value=provider):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=provider):
             findings = _mod.SIGNAL.run(model)
         self.assertEqual([], findings)
 
@@ -150,7 +151,7 @@ class TestContradictionDetection(unittest.TestCase):
         art2 = _stub_artifact("notes/b.md", "log", "other content")
         model = _stub_model(artifacts=[art, art2])
         provider = _EnabledStubProvider(responses={"": "CONTRADICTION: should not appear"})
-        with mock.patch.object(_mod, "get_provider", return_value=provider):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=provider):
             findings = _mod.SIGNAL.run(model)
         self.assertEqual([], findings)
 
@@ -159,7 +160,7 @@ class TestContradictionDetection(unittest.TestCase):
         sources = {"ref-water": {"description": "Water boils at 100 degrees Celsius at standard pressure."}}
         model = _stub_model(artifacts=[art], sources=sources)
         provider = _EnabledStubProvider(responses={"": "CONTRADICTION: temperature mismatch"})
-        with mock.patch.object(_mod, "get_provider", return_value=provider):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=provider):
             findings = _mod.SIGNAL.run(model)
         self.assertGreater(len(findings), 0)
         self.assertTrue(
@@ -172,7 +173,7 @@ class TestContradictionDetection(unittest.TestCase):
         sources = {"ref-water": {"description": "Water boils at 100 degrees Celsius."}}
         model = _stub_model(artifacts=[art], sources=sources)
         provider = _EnabledStubProvider()  # always OK
-        with mock.patch.object(_mod, "get_provider", return_value=provider):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=provider):
             findings = _mod.SIGNAL.run(model)
         self.assertEqual([], findings)
 
@@ -181,7 +182,7 @@ class TestContradictionDetection(unittest.TestCase):
         sources = {"ref": {"description": "Different content."}}
         model = _stub_model(artifacts=[art], sources=sources)
         provider = _EnabledStubProvider(responses={"": "CONTRADICTION: should not be reached"})
-        with mock.patch.object(_mod, "get_provider", return_value=provider):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=provider):
             # No artifact has a 'source' frontmatter key, so provider is never called for vs-source.
             # The single-artifact model also means no vs-artifact calls.
             findings = _mod.SIGNAL.run(model)
@@ -192,7 +193,7 @@ class TestContradictionDetection(unittest.TestCase):
         art_b = _stub_artifact("notes/b.md", "knowledge-note", "claim B")
         model = _stub_model(artifacts=[art_a, art_b])
         provider = _EnabledStubProvider(responses={"": "CONTRADICTION: reason"})
-        with mock.patch.object(_mod, "get_provider", return_value=provider):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=provider):
             findings = _mod.SIGNAL.run(model)
         self.assertGreater(len(findings), 0)
         implicated = findings[0].implicated
@@ -223,13 +224,13 @@ class TestSignalProtocolConformance(unittest.TestCase):
 
     def test_run_returns_list(self):
         disabled = DisabledProvider()
-        with mock.patch.object(_mod, "get_provider", return_value=disabled):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=disabled):
             result = _mod.SIGNAL.run(_stub_model())
         self.assertIsInstance(result, list)
 
     def test_all_returned_items_are_findings(self):
         disabled = DisabledProvider()
-        with mock.patch.object(_mod, "get_provider", return_value=disabled):
+        with mock.patch.object(llm_signal_mod, "get_provider", return_value=disabled):
             result = _mod.SIGNAL.run(_stub_model())
         for item in result:
             self.assertIsInstance(item, Finding)
