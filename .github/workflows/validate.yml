@@ -37,6 +37,9 @@ jobs:
       - name: Run unit tests
         run: uv run python -m unittest discover -s tests -v
 
+      - name: Vendored-tool drift gate
+        run: uv run python tools/sync_vendored.py --check
+
       - name: Run advisory health report
         run: uv run python tools/validate_repo.py --health-report
 
