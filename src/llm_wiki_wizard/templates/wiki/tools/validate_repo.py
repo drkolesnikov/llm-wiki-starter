@@ -14,14 +14,27 @@ try:  # script invocation: ``tools/`` is on sys.path[0]
         ALLOWED_ARTIFACT_TYPES,
         ALLOWED_SOURCE_TIERS,
         ALLOWED_STATUSES,
-        SKIP_DIRS,
     )
 except ImportError:  # imported as ``tools.validate_repo``
     from tools.wiki_spec import (
         ALLOWED_ARTIFACT_TYPES,
         ALLOWED_SOURCE_TIERS,
         ALLOWED_STATUSES,
-        SKIP_DIRS,
+    )
+
+try:  # script invocation
+    from frontmatter import (
+        clean_scalar,
+        markdown_files as _markdown_files_fn,
+        parse_frontmatter_lines as parse_frontmatter,
+        split_frontmatter,
+    )
+except ImportError:  # imported as ``tools.validate_repo``
+    from tools.frontmatter import (
+        clean_scalar,
+        markdown_files as _markdown_files_fn,
+        parse_frontmatter_lines as parse_frontmatter,
+        split_frontmatter,
     )
 
 
@@ -44,55 +57,7 @@ def rel(path: Path) -> str:
 
 
 def markdown_files() -> list[Path]:
-    return sorted(
-        path
-        for path in ROOT.rglob("*.md")
-        if not any(part in SKIP_DIRS for part in path.parts)
-    )
-
-
-def split_frontmatter(text: str) -> tuple[dict[str, object], int] | tuple[None, int]:
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return None, 0
-    for end_index in range(1, len(lines)):
-        if lines[end_index].strip() == "---":
-            return parse_frontmatter(lines[1:end_index]), end_index + 1
-    return {}, len(lines)
-
-
-def parse_frontmatter(lines: list[str]) -> dict[str, object]:
-    data: dict[str, object] = {}
-    current_key: str | None = None
-    for raw_line in lines:
-        if not raw_line.strip():
-            continue
-        if raw_line.startswith("  - ") and current_key:
-            value = raw_line[4:].strip()
-            current = data.setdefault(current_key, [])
-            if isinstance(current, list):
-                current.append(clean_scalar(value))
-            continue
-        if ":" not in raw_line:
-            continue
-        key, value = raw_line.split(":", 1)
-        key = key.strip()
-        value = value.strip()
-        current_key = key
-        if value == "[]":
-            data[key] = []
-        elif value:
-            data[key] = clean_scalar(value)
-        else:
-            data[key] = []
-    return data
-
-
-def clean_scalar(value: str) -> str:
-    value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-        return value[1:-1]
-    return value
+    return _markdown_files_fn(ROOT)
 
 
 def should_require_frontmatter(path: Path) -> bool:

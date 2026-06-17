@@ -21,13 +21,15 @@ from typing import Literal
 # Try both invocation contexts (script vs. package import).
 # ---------------------------------------------------------------------------
 try:
-    from wiki_spec import ALLOWED_STATUSES, ALLOWED_SOURCE_TIERS, SKIP_DIRS
+    from wiki_spec import ALLOWED_STATUSES, ALLOWED_SOURCE_TIERS
 except ImportError:
-    from tools.wiki_spec import ALLOWED_STATUSES, ALLOWED_SOURCE_TIERS, SKIP_DIRS
+    from tools.wiki_spec import ALLOWED_STATUSES, ALLOWED_SOURCE_TIERS
 
 try:
+    from frontmatter import markdown_files as _canonical_markdown_files
     from validate_repo import registered_sources, split_frontmatter, source_values
 except ImportError:
+    from tools.frontmatter import markdown_files as _canonical_markdown_files
     from tools.validate_repo import registered_sources, split_frontmatter, source_values
 
 
@@ -230,14 +232,6 @@ def _node_id(path: Path, root: Path) -> str:
         return path.relative_to(root).as_posix()
 
 
-def _markdown_files(root: Path) -> list[Path]:
-    return sorted(
-        p
-        for p in root.rglob("*.md")
-        if not any(part in SKIP_DIRS for part in p.parts)
-    )
-
-
 def _resolve_href(href: str, source_path: Path, root: Path, node_ids: set[str]) -> str | None:
     """Resolve a Markdown href relative to *source_path* into a node_id.
 
@@ -289,7 +283,7 @@ def build_graph(root: str | Path) -> GraphModel:
     graph = GraphModel(root=root)
 
     # --- Pass 1: build nodes ---
-    paths = _markdown_files(root)
+    paths = _canonical_markdown_files(root)
     for path in paths:
         try:
             text = path.read_text(encoding="utf-8")
