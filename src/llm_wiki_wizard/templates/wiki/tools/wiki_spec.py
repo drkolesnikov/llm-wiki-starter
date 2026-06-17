@@ -14,16 +14,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SKIP_DIRS = {
-    ".cache",
-    ".git",
-    ".pytest_cache",
-    ".venv",
-    "__pycache__",
-    "scratch",
-    "tmp",
-    "venv",
-}
+# SKIP_DIRS is owned by the frontmatter module (the leaf parser/walker) and
+# re-exported here for the validator's existing importers. This one-way import
+# (wiki_spec -> frontmatter) breaks the former circular import.
+try:  # script invocation: ``tools/`` is on sys.path[0]
+    from frontmatter import SKIP_DIRS
+except ImportError:  # imported as ``tools.wiki_spec``
+    from tools.frontmatter import SKIP_DIRS
 
 ALLOWED_ARTIFACT_TYPES = {
     "knowledge-note",

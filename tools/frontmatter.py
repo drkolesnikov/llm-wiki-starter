@@ -45,9 +45,10 @@ Public interface
 
 Self-contained
 --------------
-This module imports only :data:`SKIP_DIRS` from ``wiki_spec`` and otherwise has
-no dependency on the rest of ``tools/``, so it can be vendored into generated
-wikis without pulling in extra modules.
+This module owns :data:`SKIP_DIRS` and imports nothing else from ``tools/`` — it
+is the leaf of the parsing layer, so it can be vendored into generated wikis
+without pulling in extra modules and cannot form an import cycle (``wiki_spec``
+re-exports ``SKIP_DIRS`` from here).
 """
 
 from __future__ import annotations
@@ -55,10 +56,19 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-try:  # script invocation: ``tools/`` is on sys.path[0]
-    from wiki_spec import SKIP_DIRS
-except ImportError:  # imported as ``tools.frontmatter``
-    from tools.wiki_spec import SKIP_DIRS
+# Directories the canonical walker skips. Owned here (the leaf) so frontmatter
+# has no intra-``tools/`` imports; ``wiki_spec`` re-exports this for the
+# validator's existing importers.
+SKIP_DIRS = {
+    ".cache",
+    ".git",
+    ".pytest_cache",
+    ".venv",
+    "__pycache__",
+    "scratch",
+    "tmp",
+    "venv",
+}
 
 
 _FENCE = "---"
