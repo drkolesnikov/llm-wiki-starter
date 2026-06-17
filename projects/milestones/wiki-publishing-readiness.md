@@ -40,7 +40,7 @@ Status is `verified` after coordinator review and local validation. GitHub issue
 
 - Preserve `needs-review` on source-derived artifacts until the authoritative source text is checked.
 - Keep source material, summary-only interpretation, and synthesized knowledge separate.
-- Track GitHub sprint work in issues [#8](https://github.com/abrapacabra/llm-wiki-starter/issues/8), [#9](https://github.com/abrapacabra/llm-wiki-starter/issues/9), [#10](https://github.com/abrapacabra/llm-wiki-starter/issues/10), [#11](https://github.com/abrapacabra/llm-wiki-starter/issues/11), [#12](https://github.com/abrapacabra/llm-wiki-starter/issues/12), and [#13](https://github.com/abrapacabra/llm-wiki-starter/issues/13).
+- Track GitHub sprint work in issues [#8](https://github.com/drkolesnikov/llm-wiki-starter/issues/8), [#9](https://github.com/drkolesnikov/llm-wiki-starter/issues/9), [#10](https://github.com/drkolesnikov/llm-wiki-starter/issues/10), [#11](https://github.com/drkolesnikov/llm-wiki-starter/issues/11), [#12](https://github.com/drkolesnikov/llm-wiki-starter/issues/12), and [#13](https://github.com/drkolesnikov/llm-wiki-starter/issues/13).
 
 ## Validation
 

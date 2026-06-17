@@ -5,10 +5,10 @@
   "author": {
     "name": "LLM Wiki Contributors",
     "email": "noreply@example.com",
-    "url": "https://github.com/abrapacabra/llm-wiki-starter"
+    "url": "https://github.com/drkolesnikov/llm-wiki-starter"
   },
-  "homepage": "https://github.com/abrapacabra/llm-wiki-starter",
-  "repository": "https://github.com/abrapacabra/llm-wiki-starter",
+  "homepage": "https://github.com/drkolesnikov/llm-wiki-starter",
+  "repository": "https://github.com/drkolesnikov/llm-wiki-starter",
   "license": "MIT",
   "keywords": [
     "wiki",
@@ -26,9 +26,9 @@
       "Interactive",
       "Write"
     ],
-    "websiteURL": "https://github.com/abrapacabra/llm-wiki-starter",
-    "privacyPolicyURL": "https://github.com/abrapacabra/llm-wiki-starter",
-    "termsOfServiceURL": "https://github.com/abrapacabra/llm-wiki-starter",
+    "websiteURL": "https://github.com/drkolesnikov/llm-wiki-starter",
+    "privacyPolicyURL": "https://github.com/drkolesnikov/llm-wiki-starter",
+    "termsOfServiceURL": "https://github.com/drkolesnikov/llm-wiki-starter",
     "defaultPrompt": [
       "Initialize an LLM wiki in this repo.",
       "Check this repo's LLM wiki status.",

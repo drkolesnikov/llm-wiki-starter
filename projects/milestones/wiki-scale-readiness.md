@@ -19,8 +19,8 @@ The wiki starter has a documented local search lane and a v1 health-lint workflo
 
 | Wave | Issue | Owner Lane | Status | Acceptance Focus |
 | --- | --- | --- | --- | --- |
-| Sprint 2 | [#4 Add local wiki search lane for scale](https://github.com/abrapacabra/llm-wiki-starter/issues/4) | Agent E | complete | Search order is documented, optional stdlib search CLI works, and ignored paths are explicit. |
-| Sprint 2 | [#3 Add wiki health lint workflow beyond structural validation](https://github.com/abrapacabra/llm-wiki-starter/issues/3) | Agent F | complete | Health lint separates mechanical checks from semantic review, issue template exists, and any validator report remains non-blocking. |
+| Sprint 2 | [#4 Add local wiki search lane for scale](https://github.com/drkolesnikov/llm-wiki-starter/issues/4) | Agent E | complete | Search order is documented, optional stdlib search CLI works, and ignored paths are explicit. |
+| Sprint 2 | [#3 Add wiki health lint workflow beyond structural validation](https://github.com/drkolesnikov/llm-wiki-starter/issues/3) | Agent F | complete | Health lint separates mechanical checks from semantic review, issue template exists, and any validator report remains non-blocking. |
 
 ## Coordination
 
