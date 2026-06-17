@@ -50,6 +50,7 @@ VENDORED_TOOL_FILES: tuple[str, ...] = (
     "eval/signals/knowledge_f1.py",
     "eval/signals/stability.py",
     "eval/signals/stale.py",
+    "frontmatter.py",
     "generate_indexes.py",
     "interchange/__init__.py",
     "interchange/export.py",
