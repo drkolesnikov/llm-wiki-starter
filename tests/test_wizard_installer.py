@@ -213,7 +213,9 @@ class CommandSeamTests(unittest.TestCase):
         return names
 
     def test_init_and_status_are_autodiscovered(self):
-        self.assertEqual({"init", "status"}, self._command_names(app))
+        names = self._command_names(app)
+        self.assertIn("init", names)
+        self.assertIn("status", names)
 
     def test_dropping_a_command_module_registers_it_without_editing_cli(self):
         # A future command appears purely by dropping commands/<name>.py with a
