@@ -12,6 +12,7 @@ Before editing, read:
 2. `docs/workflow.md`
 3. `meta/index.md`
 4. `meta/source-registry.md`
+5. `docs/llm-wiki-format.md` — canonical format spec: artifact types, frontmatter fields, allowed values, conformance tiers, and read protocol.
 
 Then inspect the specific issue, workstream, source, note, review, decision, or task artifact that scopes the work.
 
