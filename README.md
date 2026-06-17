@@ -17,19 +17,19 @@ If `uv` is not installed yet, use the official installer from [docs.astral.sh/uv
 2. Preview the install in your target repo:
 
 ```bash
-uvx --from git+https://github.com/abrapacabra/llm-wiki-starter llm-wiki init /path/to/repo --dry-run --yes --json
+uvx --from git+https://github.com/drkolesnikov/llm-wiki-starter llm-wiki init /path/to/repo --dry-run --yes --json
 ```
 
 3. Create the wiki workspace:
 
 ```bash
-uvx --from git+https://github.com/abrapacabra/llm-wiki-starter llm-wiki init /path/to/repo --yes
+uvx --from git+https://github.com/drkolesnikov/llm-wiki-starter llm-wiki init /path/to/repo --yes
 ```
 
 4. Check the installation status:
 
 ```bash
-uvx --from git+https://github.com/abrapacabra/llm-wiki-starter llm-wiki status /path/to/repo --json
+uvx --from git+https://github.com/drkolesnikov/llm-wiki-starter llm-wiki status /path/to/repo --json
 ```
 
 5. Read the generated agent entry point:
