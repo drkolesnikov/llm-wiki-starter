@@ -47,3 +47,17 @@ When creating or materially changing durable artifacts:
 ## Done Standard
 
 Agent work is done when changed artifacts are in the right place, links are traceable, uncertainty is explicit, verification has run, and `meta/log.md` records the maintenance action.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live as GitHub issues on the origin remote; use the `gh` CLI (repo inferred from `git remote -v`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical five-role triage vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), used as-is and distinct from the repo's type labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context: `CONTEXT-MAP.md` at root points to per-context `CONTEXT.md` files (wiki layer + installer/CLI); ADRs in `docs/adr/`. See `docs/agents/domain.md`.
