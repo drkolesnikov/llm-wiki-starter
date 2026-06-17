@@ -17,7 +17,7 @@ from copier import run_copy
 from . import __version__
 
 
-SCAFFOLD_VERSION = "0.1.1"
+SCAFFOLD_VERSION = "0.2.0"
 WIKI_DIRNAME = "llm-wiki"
 LEGACY_WIKI_DIRNAME = ".llm-wiki"
 INSTALL_MANIFEST = Path("meta/install.json")

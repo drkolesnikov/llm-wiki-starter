@@ -262,7 +262,7 @@ class PluginScaffoldTests(unittest.TestCase):
         )
 
         self.assertEqual("llm-wiki", manifest["name"])
-        self.assertEqual("0.1.1", manifest["version"])
+        self.assertEqual("0.2.0", manifest["version"])
         self.assertEqual("./skills/", manifest["skills"])
         self.assertEqual("LLM Wiki", manifest["interface"]["displayName"])
         self.assertIn("Write", manifest["interface"]["capabilities"])
