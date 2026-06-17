@@ -39,3 +39,34 @@ jobs:
 
       - name: Run advisory health report
         run: uv run python tools/validate_repo.py --health-report
+
+  preservation-gate:
+    name: Preservation gate (destructive-change check)
+    runs-on: ubuntu-latest
+    # Only meaningful on pull_request; skip for direct pushes to main.
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Check out repository (full history for base-ref diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync Python environment
+        run: uv sync --locked
+
+      - name: Run preservation gate
+        run: |
+          uv run python tools/hooks/ci_preservation_gate.py \
+            --base-ref "origin/${{ github.base_ref }}" \
+            --head-ref "${{ github.sha }}"
