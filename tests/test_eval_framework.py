@@ -58,13 +58,24 @@ class FindingAndReportTests(unittest.TestCase):
         self.assertEqual({"deterministic": 1, "llm": 1}, machine["counts"])
 
 
-class EmptySignalsTests(unittest.TestCase):
-    def test_empty_signals_dir_yields_no_findings(self):
-        # The shipped signals package is intentionally empty (issue #35);
-        # discovery and the suite must both return nothing.
-        self.assertEqual([], eval_pkg.discover_signals())
+class SignalRegistryTests(unittest.TestCase):
+    def test_discovered_signals_conform_and_have_unique_ids(self):
+        # Holds whether the signals package is empty (issue #35) or populated
+        # (issue #20): every discovered signal conforms to the protocol and
+        # carries a unique id. (Replaces the old "dir is empty" assertion, which
+        # was only true before the signal slices landed.)
+        discovered = eval_pkg.discover_signals()
+        ids = []
+        for _name, signal in discovered:
+            self.assertIsInstance(signal, Signal)
+            self.assertIn(signal.finding_class, ("deterministic", "llm"))
+            ids.append(signal.id)
+        self.assertEqual(len(ids), len(set(ids)), "signal ids must be unique")
+
+    def test_suite_returns_only_findings(self):
         model = load_repo_model(ROOT)
-        self.assertEqual([], run_suite(model))
+        for finding in run_suite(model):
+            self.assertIsInstance(finding, Finding)
 
     def test_stub_satisfies_signal_protocol(self):
         self.assertIsInstance(_StubSignal(), Signal)
