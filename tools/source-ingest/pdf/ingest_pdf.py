@@ -21,6 +21,23 @@ SOURCE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
 SOURCE_TIERS = ("primary", "secondary", "reference", "background", "restricted")
 OUTPUT_DIRS = ("pages", "tables", "figures", "source-maps")
 
+# ---------------------------------------------------------------------------
+# Registry import — registry.py lives at tools/source-ingest/registry.py.
+# We load it via importlib so this script works whether the repo root is on
+# sys.path or not.
+# ---------------------------------------------------------------------------
+import importlib.util as _ilu
+
+_registry_path = Path(__file__).resolve().parents[1] / "registry.py"
+_registry_spec = _ilu.spec_from_file_location("_si_registry", _registry_path)
+if _registry_spec and _registry_spec.loader:
+    _registry_mod = _ilu.module_from_spec(_registry_spec)
+    sys.modules.setdefault("_si_registry", _registry_mod)
+    _registry_spec.loader.exec_module(_registry_mod)  # type: ignore[attr-defined]
+    _register_source = _registry_mod.register_source
+else:
+    raise ImportError(f"Could not load source registry from {_registry_path}")
+
 
 @dataclass(frozen=True)
 class DoclingRuntime:
@@ -88,6 +105,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--vault-provider", default="local", help="Vault or storage provider label.")
     parser.add_argument("--original-repo-pointer", default="", help="Repository-relative pointer to a source note or vault README.")
     parser.add_argument("--no-local-path-hint", action="store_true", help="Omit the machine-specific local path hint.")
+    parser.add_argument(
+        "--registry-path",
+        default="",
+        help="Path to meta/source-registry.md. Required when --locator is given or when registering a new source.",
+    )
+    parser.add_argument(
+        "--locator",
+        default="",
+        help="URL or canonical locator for the PDF source (e.g. DOI, publisher URL). Required for paged/chunked formats.",
+    )
     parser.set_defaults(extract_figures=True, render_pages=True, do_ocr=True)
     return parser.parse_args(argv)
 
@@ -741,11 +768,29 @@ def write_outline(output_dir: Path, args: argparse.Namespace, sections: list[dic
     )
 
 
+def _resolve_registry_path(args: argparse.Namespace, output_root: Path) -> Path | None:
+    """Return the registry path from args, or auto-detect from the wiki root."""
+    if getattr(args, "registry_path", None):
+        return Path(args.registry_path).expanduser().resolve()
+    # Auto-detect: walk up from output_root to find meta/source-registry.md.
+    candidate = output_root
+    for _ in range(8):
+        registry = candidate / "meta" / "source-registry.md"
+        if registry.exists():
+            return registry
+        parent = candidate.parent
+        if parent == candidate:
+            break
+        candidate = parent
+    return None
+
+
 def ingest_pdf(
     args: argparse.Namespace,
     *,
     runtime: DoclingRuntime | None = None,
     page_count_reader=pdf_page_count,
+    registry_path: "Path | None" = None,
 ) -> Path:
     require_source_id(args.source_id)
     if args.parser_profile == "pymupdf":
@@ -756,10 +801,30 @@ def ingest_pdf(
     if not pdf_path.is_file():
         raise SystemExit(f"PDF path is not a file: {pdf_path}")
 
+    # --- registry guard (must precede output creation so we fail fast) ---
+    output_root = Path(args.output_root).resolve()
+    resolved_registry = registry_path or _resolve_registry_path(args, output_root)
+    if resolved_registry is not None:
+        locator = getattr(args, "locator", "") or None
+        result = _register_source(
+            source_id=args.source_id,
+            title=args.title,
+            tier=args.source_tier,
+            derived_path=f"{args.output_root}/{args.source_id}",
+            locator=locator,
+            format_has_locators=True,
+            registry_path=resolved_registry,
+        )
+        if not result.ok:
+            items = ", ".join(result.missing)
+            raise SystemExit(
+                f"Source registration failed for '{args.source_id}'. "
+                f"Missing required field(s): {items}."
+            )
+
     page_count = page_count_reader(pdf_path)
     page_numbers = selected_pages(page_count, args.page_range)
     runtime = runtime or import_docling()
-    output_root = Path(args.output_root).resolve()
     output_dir = output_root / args.source_id
     ensure_output(output_dir, args.overwrite)
 
