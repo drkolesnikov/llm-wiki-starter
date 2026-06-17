@@ -9,51 +9,23 @@ import argparse
 from collections import Counter
 from pathlib import Path
 
+try:  # script invocation: ``tools/`` is on sys.path[0]
+    from wiki_spec import (
+        ALLOWED_ARTIFACT_TYPES,
+        ALLOWED_SOURCE_TIERS,
+        ALLOWED_STATUSES,
+        SKIP_DIRS,
+    )
+except ImportError:  # imported as ``tools.validate_repo``
+    from tools.wiki_spec import (
+        ALLOWED_ARTIFACT_TYPES,
+        ALLOWED_SOURCE_TIERS,
+        ALLOWED_STATUSES,
+        SKIP_DIRS,
+    )
+
 
 ROOT = Path(__file__).resolve().parents[1]
-
-SKIP_DIRS = {
-    ".cache",
-    ".git",
-    ".pytest_cache",
-    ".venv",
-    "__pycache__",
-    "scratch",
-    "tmp",
-    "venv",
-}
-
-ALLOWED_ARTIFACT_TYPES = {
-    "knowledge-note",
-    "source-summary",
-    "source-map",
-    "source-registry",
-    "index",
-    "log",
-    "milestone",
-    "workstream",
-    "review",
-    "decision",
-    "agent-task",
-    "source-ingest-policy",
-}
-
-ALLOWED_STATUSES = {
-    "draft",
-    "active",
-    "needs-review",
-    "verified",
-    "conflicted",
-    "deprecated",
-}
-
-ALLOWED_SOURCE_TIERS = {
-    "primary",
-    "secondary",
-    "reference",
-    "background",
-    "restricted",
-}
 
 LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 WIKILINK_RE = re.compile(r"\[\[([^\]|#]+)")
@@ -134,8 +106,8 @@ def should_require_frontmatter(path: Path) -> bool:
     )
 
 
-def registered_sources() -> dict[str, dict[str, str]]:
-    registry_path = ROOT / "meta" / "source-registry.md"
+def registered_sources(root: Path | None = None) -> dict[str, dict[str, str]]:
+    registry_path = (root if root is not None else ROOT) / "meta" / "source-registry.md"
     if not registry_path.exists():
         return {}
     sources: dict[str, dict[str, str]] = {}
