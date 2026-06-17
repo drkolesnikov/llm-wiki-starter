@@ -35,9 +35,12 @@ tier and never change its exit status.
 from __future__ import annotations
 
 import importlib
+import json
 import pkgutil
 from dataclasses import dataclass, field
-from typing import List, Protocol, Sequence, Tuple, runtime_checkable
+from datetime import date
+from pathlib import Path
+from typing import List, Optional, Protocol, Sequence, Tuple, runtime_checkable
 
 
 #: A finding either comes from a deterministic rule or an LLM judge.
@@ -202,3 +205,77 @@ def render_report(findings: Sequence[Finding]) -> Tuple[str, dict]:
         "total": len(findings),
     }
     return "\n".join(lines), machine
+
+
+def persist_report(
+    findings: Sequence[Finding],
+    *,
+    root: Optional[Path] = None,
+    title: str = "Wiki Evaluation Report",
+    updated: Optional[str] = None,
+) -> Tuple[Path, Path]:
+    """Write governed report artifacts to ``reviews/``.
+
+    Produces two files under *root* (defaults to the repository root inferred
+    from this module's location):
+
+    ``reviews/health-report.md``
+        A Markdown artifact with required frontmatter fields
+        (``artifact_type: review``, ``status: active``, ``title``, ``updated``)
+        so it passes ``tools/validate_repo.py``.
+
+    ``reviews/health-report.json``
+        A machine-readable JSON companion carrying the same findings as
+        ``render_report`` returns.
+
+    The report is **advisory**: this function never changes any exit status.
+
+    Parameters
+    ----------
+    findings:
+        The findings to persist, as returned by :func:`run_suite`.
+    root:
+        Repository root directory. Defaults to the parent of this package's
+        parent (``tools/eval/`` → ``tools/`` → repo root).
+    title:
+        Human-readable title stored in the frontmatter ``title`` field.
+    updated:
+        ISO-8601 date string (``YYYY-MM-DD``) for the ``updated`` field.
+        Defaults to today's date.
+
+    Returns
+    -------
+    (md_path, json_path)
+        Absolute :class:`~pathlib.Path` objects for the two written files.
+    """
+
+    if root is None:
+        # tools/eval/__init__.py → tools/eval/ → tools/ → repo root
+        root = Path(__file__).resolve().parents[2]
+    if updated is None:
+        updated = date.today().isoformat()
+
+    markdown_body, machine = render_report(findings)
+
+    # Build the governed Markdown artifact with required frontmatter.
+    frontmatter_lines = [
+        "---",
+        "artifact_type: review",
+        "status: active",
+        f'title: "{title}"',
+        f"updated: {updated}",
+        "---",
+        "",
+    ]
+    md_content = "\n".join(frontmatter_lines) + markdown_body
+
+    reviews_dir = Path(root) / "reviews"
+    reviews_dir.mkdir(parents=True, exist_ok=True)
+
+    md_path = reviews_dir / "health-report.md"
+    md_path.write_text(md_content, encoding="utf-8")
+
+    json_path = reviews_dir / "health-report.json"
+    json_path.write_text(json.dumps(machine, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    return md_path, json_path
