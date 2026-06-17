@@ -13,6 +13,7 @@ def _state(
     body: str = "",
     url: str = "",
     title: str = "test-artifact",
+    governance: dict | None = None,
 ) -> dict:
     """Build a minimal artifact state dict."""
     fm: dict = {"type": artifact_type, "status": status, "title": title}
@@ -20,6 +21,8 @@ def _state(
         fm["sources"] = sources
     if url:
         fm["url"] = url
+    if governance is not None:
+        fm["governance"] = governance
     return {"frontmatter": fm, "body": body}
 
 
@@ -332,6 +335,240 @@ class TestPurity(unittest.TestCase):
         src = inspect.getsource(mod)
         self.assertNotIn("open(", src)
         self.assertNotIn("Path(", src)
+
+
+class TestJustificationTrail(unittest.TestCase):
+    """F2 — asymmetric friction: justification trail tests.
+
+    Destructive changes are blocked unless the after-state frontmatter carries
+    a ``governance.justifications`` entry whose ``covers`` list is a superset
+    of every detected destructive category.
+    """
+
+    # ------------------------------------------------------------------
+    # Helpers to build common before/after pairs
+    # ------------------------------------------------------------------
+
+    def _destructive_before(self) -> dict:
+        """An artifact with a citation and an active status."""
+        return _state(sources=["src1"], status="active", title="note-a")
+
+    def _destructive_after_no_justification(self) -> dict:
+        """Drop the citation — destructive, no justification."""
+        return _state(sources=[], status="active", title="note-a")
+
+    # ------------------------------------------------------------------
+    # 1. Destructive change WITHOUT justification → blocked
+    # ------------------------------------------------------------------
+
+    def test_destructive_no_justification_blocked(self):
+        """A dropped citation with no justification must be blocked."""
+        before = self._destructive_before()
+        after = self._destructive_after_no_justification()
+        verdict = evaluate_change(before, after)
+        self.assertTrue(verdict.blocked)
+        self.assertTrue(_has_category(verdict, "dropped_citation"))
+
+    def test_destructive_no_governance_block_blocked(self):
+        """After-state with no ``governance`` key at all → blocked."""
+        before = _state(sources=["src1"], status="verified")
+        after = _state(sources=[], status="draft")  # dropped_citation + verified_downgrade
+        verdict = evaluate_change(before, after)
+        self.assertTrue(verdict.blocked)
+
+    # ------------------------------------------------------------------
+    # 2. Destructive change WITH covering justification → allowed
+    # ------------------------------------------------------------------
+
+    def test_destructive_with_covering_justification_allowed(self):
+        """A dropped citation with a justification covering dropped_citation → allowed."""
+        before = self._destructive_before()
+        after = _state(
+            sources=[],
+            status="active",
+            title="note-a",
+            governance={
+                "justifications": [
+                    {
+                        "covers": ["dropped_citation"],
+                        "reason": "Source retracted; citation removed intentionally.",
+                    }
+                ]
+            },
+        )
+        verdict = evaluate_change(before, after)
+        self.assertFalse(verdict.blocked)
+        # Findings are still reported even though not blocked.
+        self.assertTrue(_has_category(verdict, "dropped_citation"))
+
+    def test_multi_category_covered_justification_allowed(self):
+        """Multiple destructive categories fully covered → allowed."""
+        before = _state(sources=["src1"], status="verified", title="note-b")
+        after = _state(
+            sources=[],
+            status="draft",
+            title="note-b",
+            governance={
+                "justifications": [
+                    {
+                        "covers": ["dropped_citation", "verified_downgrade"],
+                        "reason": "Major revision: source removed and status reset.",
+                    }
+                ]
+            },
+        )
+        verdict = evaluate_change(before, after)
+        self.assertFalse(verdict.blocked)
+
+    def test_newest_entry_used_and_covers_all(self):
+        """Only the last (newest) justification entry is evaluated."""
+        before = _state(sources=["src1"], status="active", title="note-c")
+        after = _state(
+            sources=[],
+            status="active",
+            title="note-c",
+            governance={
+                "justifications": [
+                    # First entry does NOT cover
+                    {"covers": ["verified_downgrade"], "reason": "Old entry."},
+                    # Last (newest) entry DOES cover
+                    {"covers": ["dropped_citation"], "reason": "Source retracted."},
+                ]
+            },
+        )
+        verdict = evaluate_change(before, after)
+        self.assertFalse(verdict.blocked)
+
+    # ------------------------------------------------------------------
+    # 3. Justification present but NOT covering the detected change → blocked
+    # ------------------------------------------------------------------
+
+    def test_justification_non_covering_blocked(self):
+        """A justification that covers a different category does not unblock."""
+        before = _state(sources=["src1"], status="active", title="note-d")
+        after = _state(
+            sources=[],
+            status="active",
+            title="note-d",
+            governance={
+                "justifications": [
+                    {
+                        # covers verified_downgrade, NOT dropped_citation
+                        "covers": ["verified_downgrade"],
+                        "reason": "Wrong category for this change.",
+                    }
+                ]
+            },
+        )
+        verdict = evaluate_change(before, after)
+        self.assertTrue(verdict.blocked)
+        self.assertTrue(_has_category(verdict, "dropped_citation"))
+
+    def test_justification_partial_coverage_blocked(self):
+        """Justification covering only some detected categories → blocked."""
+        before = _state(sources=["src1"], status="verified", title="note-e")
+        after = _state(
+            sources=[],
+            status="draft",
+            title="note-e",
+            governance={
+                "justifications": [
+                    {
+                        # covers dropped_citation but NOT verified_downgrade
+                        "covers": ["dropped_citation"],
+                        "reason": "Partial justification.",
+                    }
+                ]
+            },
+        )
+        verdict = evaluate_change(before, after)
+        self.assertTrue(verdict.blocked)
+
+    def test_empty_justifications_list_blocked(self):
+        """An empty justifications list does not unblock a destructive change."""
+        before = _state(sources=["src1"], status="active", title="note-f")
+        after = _state(
+            sources=[],
+            status="active",
+            title="note-f",
+            governance={"justifications": []},
+        )
+        verdict = evaluate_change(before, after)
+        self.assertTrue(verdict.blocked)
+
+    def test_covers_empty_list_in_entry_blocked(self):
+        """A justification entry with an empty covers list does not unblock."""
+        before = _state(sources=["src1"], status="active", title="note-g")
+        after = _state(
+            sources=[],
+            status="active",
+            title="note-g",
+            governance={
+                "justifications": [{"covers": [], "reason": "Empty covers."}]
+            },
+        )
+        verdict = evaluate_change(before, after)
+        self.assertTrue(verdict.blocked)
+
+    def test_covers_superset_still_unblocks(self):
+        """Justification covering more than the detected categories still unblocks."""
+        before = _state(sources=["src1"], status="active", title="note-h")
+        after = _state(
+            sources=[],
+            status="active",
+            title="note-h",
+            governance={
+                "justifications": [
+                    {
+                        # covers extra categories beyond what was detected
+                        "covers": ["dropped_citation", "verified_downgrade", "artifact_deletion"],
+                        "reason": "Broad justification.",
+                    }
+                ]
+            },
+        )
+        verdict = evaluate_change(before, after)
+        self.assertFalse(verdict.blocked)
+
+    # ------------------------------------------------------------------
+    # 4. Additive change → no justification required, never blocked
+    # ------------------------------------------------------------------
+
+    def test_additive_change_no_justification_needed(self):
+        """A purely additive change is never blocked even without a justification."""
+        before = _state(
+            sources=["src1"],
+            status="active",
+            body="## Claim\nX\n## Source Support\nY\n## Details\nZ\n## Open Questions\nQ\n## Links\nL",
+        )
+        after = _state(
+            sources=["src1", "src2"],
+            status="active",
+            body="## Claim\nX\n## Source Support\nY\n## Details\nZ + more\n## Open Questions\nQ\n## Links\nL",
+        )
+        verdict = evaluate_change(before, after)
+        self.assertFalse(verdict.blocked)
+        self.assertEqual(verdict.findings, [])
+
+    def test_status_upgrade_no_justification_needed(self):
+        """Status upgrade is additive and never requires justification."""
+        before = _state(
+            status="draft",
+            body="## Claim\nX\n## Source Support\nY\n## Details\nZ\n## Open Questions\nQ\n## Links\nL",
+        )
+        after = _state(
+            status="verified",
+            body="## Claim\nX\n## Source Support\nY\n## Details\nZ\n## Open Questions\nQ\n## Links\nL",
+        )
+        verdict = evaluate_change(before, after)
+        self.assertFalse(verdict.blocked)
+        self.assertEqual(verdict.findings, [])
+
+    def test_new_artifact_never_requires_justification(self):
+        """Creating a new artifact (before=None) never requires justification."""
+        after = _state(status="active", sources=["src1"])
+        verdict = evaluate_change(None, after)
+        self.assertFalse(verdict.blocked)
 
 
 if __name__ == "__main__":

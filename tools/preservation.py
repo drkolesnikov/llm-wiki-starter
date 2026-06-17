@@ -3,6 +3,33 @@
 `evaluate_change(before, after)` compares two artifact states and returns a
 Verdict indicating whether the transition is destructive.  The engine is PURE —
 it reads only the states passed in and performs no Git or filesystem access.
+
+Justification trail (F2 — asymmetric friction)
+-----------------------------------------------
+A destructive change may be *allowed* when the artifact's after-state frontmatter
+carries a ``governance.justifications`` entry that explicitly covers every
+destructive category detected in the diff.
+
+**Justification shape** (YAML frontmatter)::
+
+    governance:
+      justifications:
+        - covers: [dropped_citation, verified_downgrade]   # list of categories
+          reason: "Retiring superseded source; downgrade is intentional."
+        - covers: [deleted_required_section]
+          reason: "Section merged into Claim per new template."
+
+Rules:
+- ``covers`` must be a YAML list of destructive-category strings.
+- ``reason`` is a free-form string; mandatory for documentation purposes.
+- The **newest** entry (last item in the list) is evaluated.
+- An entry is valid only if its ``covers`` list is a superset of all detected
+  destructive categories in the diff.  Partial coverage does NOT unblock.
+- Purely additive diffs never require a justification.
+- Whole-artifact deletion (``after is None``) is always blocked regardless of
+  any justification because there is no after-state to carry one.
+
+Format-spec reference: ``docs/llm-wiki-format.md`` §Governance.
 """
 from __future__ import annotations
 
@@ -200,8 +227,17 @@ def evaluate_change(
     after_status = str(after_fm.get("status", "")).strip()
     _check_verified_downgrade(before_status, after_status, artifact_id, findings)
 
-    blocked = bool(findings)
-    return Verdict(blocked=blocked, findings=findings)
+    if not findings:
+        return Verdict(blocked=False, findings=[])
+
+    # Asymmetric friction: allow a destructive change only when the after-state
+    # carries a justification whose ``covers`` is a superset of every detected
+    # destructive category.  Partial coverage does NOT unblock.
+    detected_categories = {f.category for f in findings}
+    if _justification_covers(after_fm, detected_categories):
+        return Verdict(blocked=False, findings=findings)
+
+    return Verdict(blocked=True, findings=findings)
 
 
 def _artifact_id(state: dict[str, Any] | None) -> str:
@@ -214,6 +250,43 @@ def _artifact_id(state: dict[str, Any] | None) -> str:
         if val:
             return str(val)
     return state.get("path", "<unknown>")
+
+
+def _justification_covers(after_fm: dict[str, Any], categories: set[str]) -> bool:
+    """Return True if the newest justification entry in *after_fm* covers all *categories*.
+
+    Looks up ``after_fm["governance"]["justifications"]``.  The *newest* entry
+    is defined as the **last** item in the list.  The entry is accepted only if
+    its ``covers`` field is a list that is a superset of every string in
+    *categories*.
+
+    Returns False when:
+    - no ``governance`` block exists,
+    - no ``justifications`` list exists or it is empty,
+    - the newest entry lacks a ``covers`` key,
+    - ``covers`` does not include every category.
+    """
+    if not categories:
+        return True  # nothing to cover
+
+    governance = after_fm.get("governance")
+    if not isinstance(governance, dict):
+        return False
+
+    justifications = governance.get("justifications")
+    if not isinstance(justifications, list) or not justifications:
+        return False
+
+    newest = justifications[-1]
+    if not isinstance(newest, dict):
+        return False
+
+    covers_raw = newest.get("covers")
+    if not isinstance(covers_raw, list):
+        return False
+
+    covered = {str(c).strip() for c in covers_raw}
+    return categories.issubset(covered)
 
 
 def _check_verified_downgrade(
