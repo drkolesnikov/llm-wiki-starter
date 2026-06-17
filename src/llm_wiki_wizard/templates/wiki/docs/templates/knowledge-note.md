@@ -2,6 +2,7 @@
 artifact_type: knowledge-note
 status: draft
 title: ""
+description: ""
 owner: ""
 aliases: []
 tags: []
