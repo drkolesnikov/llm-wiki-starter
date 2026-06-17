@@ -17,12 +17,71 @@ from copier import run_copy
 from . import __version__
 
 
-SCAFFOLD_VERSION = "0.1.1"
+SCAFFOLD_VERSION = "0.2.0"
 WIKI_DIRNAME = "llm-wiki"
 LEGACY_WIKI_DIRNAME = ".llm-wiki"
 INSTALL_MANIFEST = Path("meta/install.json")
 INSTALL_REPORT = Path("meta/install-report.md")
 COPIER_ANSWERS = ".copier-answers.yml"
+
+# ---------------------------------------------------------------------------
+# Vendored-tool manifest
+# ---------------------------------------------------------------------------
+# Canonical list of tool files (relative to tools/) that are vendored into
+# src/llm_wiki_wizard/templates/wiki/tools/ and copied into every generated
+# wiki.  This is the single authoritative source for "what gets vendored".
+#
+# Intentionally excluded (repo-specific, not for generated wikis):
+#   - checks/identity.py              — guards drkolesnikov/llm-wiki-starter
+#                                       canonical home; irrelevant elsewhere.
+#   - hooks/ci_preservation_gate.py   — CI gate adapter; requires git/GitHub.
+#   - hooks/pre_commit_preservation.py — pre-commit adapter; CI-specific.
+VENDORED_TOOL_FILES: tuple[str, ...] = (
+    "_registry.py",
+    "checks/__init__.py",
+    "checks/c10_frontmatter.py",
+    "checks/c20_registry.py",
+    "checks/c30_links.py",
+    "eval/__init__.py",
+    "eval/llm_signal.py",
+    "eval/signals/__init__.py",
+    "eval/signals/contradiction.py",
+    "eval/signals/disambiguation.py",
+    "eval/signals/duplication.py",
+    "eval/signals/grounding.py",
+    "eval/signals/knowledge_f1.py",
+    "eval/signals/stability.py",
+    "eval/signals/stale.py",
+    "frontmatter.py",
+    "generate_indexes.py",
+    "interchange/__init__.py",
+    "interchange/export.py",
+    "interchange/import_.py",
+    "llm_provider.py",
+    "preservation.py",
+    "search_wiki.py",
+    "source-ingest/core.py",
+    "source-ingest/epub/ingest_epub.py",
+    "source-ingest/pdf/ingest_pdf.py",
+    "source-ingest/registry.py",
+    "source-ingest/web/crawler.py",
+    "source-ingest/web/emitter.py",
+    "source-ingest/web/enrich.py",
+    "source-ingest/web/router.py",
+    "validate_repo.py",
+    "viewer/__init__.py",
+    "viewer/extract.py",
+    "viewer/render.py",
+    "wiki_model.py",
+    "wiki_spec.py",
+)
+
+# Canonical list of doc files (relative to docs/) vendored into the template's
+# docs/ so generated wikis ship the current format contract and guides. Covered
+# by the same sync script + CI drift gate as the tool manifest above.
+VENDORED_DOC_FILES: tuple[str, ...] = (
+    "llm-wiki-format.md",
+)
 
 POINTER_START = "<!-- llm-wiki:start -->"
 POINTER_END = "<!-- llm-wiki:end -->"

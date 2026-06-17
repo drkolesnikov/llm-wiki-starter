@@ -1,3 +1,4 @@
+import importlib
 import json
 import subprocess
 import sys
@@ -5,9 +6,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import typer
 from typer.testing import CliRunner
 
+import llm_wiki_wizard.commands as commands
 from llm_wiki_wizard.cli import app
+from llm_wiki_wizard.commands import register_all
 from llm_wiki_wizard.installer import (
     POINTER_END,
     POINTER_START,
@@ -199,6 +203,58 @@ class WizardInstallerTests(unittest.TestCase):
             self.assertIn("Repository validation passed.", result.stdout)
 
 
+class CommandSeamTests(unittest.TestCase):
+    def _command_names(self, target_app: typer.Typer) -> set[str]:
+        result = CliRunner().invoke(target_app, ["--help"])
+        self.assertEqual(0, result.exit_code, result.output)
+        names: set[str] = set()
+        for info in target_app.registered_commands:
+            names.add(info.name or info.callback.__name__)
+        return names
+
+    def test_init_and_status_are_autodiscovered(self):
+        names = self._command_names(app)
+        self.assertIn("init", names)
+        self.assertIn("status", names)
+
+    def test_dropping_a_command_module_registers_it_without_editing_cli(self):
+        # A future command appears purely by dropping commands/<name>.py with a
+        # register(app); no edit to cli.py or commands/__init__.py is needed.
+        module_path = Path(commands.__path__[0]) / "dummyseamprobe.py"
+        module_path.write_text(
+            "\n".join(
+                [
+                    "import typer",
+                    "",
+                    "",
+                    "def register(app: typer.Typer) -> None:",
+                    "    @app.command()",
+                    "    def dummyseamprobe() -> None:",
+                    '        """Probe command proving auto-discovery."""',
+                    "        typer.echo('probe-ok')",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        try:
+            importlib.invalidate_caches()
+            fresh_app = typer.Typer()
+            register_all(fresh_app)
+
+            names = self._command_names(fresh_app)
+            self.assertIn("dummyseamprobe", names)
+            self.assertIn("init", names)
+            self.assertIn("status", names)
+
+            invoked = CliRunner().invoke(fresh_app, ["dummyseamprobe"])
+            self.assertEqual(0, invoked.exit_code, invoked.output)
+            self.assertIn("probe-ok", invoked.output)
+        finally:
+            module_path.unlink(missing_ok=True)
+            sys.modules.pop(f"{commands.__name__}.dummyseamprobe", None)
+
+
 class PluginScaffoldTests(unittest.TestCase):
     def test_plugin_manifest_shape(self):
         manifest = json.loads(
@@ -206,7 +262,7 @@ class PluginScaffoldTests(unittest.TestCase):
         )
 
         self.assertEqual("llm-wiki", manifest["name"])
-        self.assertEqual("0.1.1", manifest["version"])
+        self.assertEqual("0.2.0", manifest["version"])
         self.assertEqual("./skills/", manifest["skills"])
         self.assertEqual("LLM Wiki", manifest["interface"]["displayName"])
         self.assertIn("Write", manifest["interface"]["capabilities"])

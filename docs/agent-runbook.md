@@ -8,13 +8,14 @@ Use this runbook after reading `AGENTS.md`. It tells a cold-start agent how to n
 2. Read `docs/workflow.md`.
 3. Read `meta/index.md`.
 4. Read `meta/source-registry.md`.
-5. Read `docs/source-ingest-policy.md` before ingesting, deriving, or summarizing a source.
-6. Read `docs/obsidian-conventions.md` before creating or materially changing durable wiki pages.
-7. Read `docs/query-workflow.md` before promoting a query answer into a durable artifact.
-8. Read `docs/search.md` when index/workstream navigation is not enough.
-9. Read `docs/wiki-health-lint.md` before running or filing wiki health checks.
-10. Inspect the issue, workstream, source folder, note, review, or decision that scopes the task.
-11. Keep edits scoped to that workflow.
+5. Read `docs/llm-wiki-format.md` — canonical format spec covering artifact types, frontmatter fields, allowed values, conformance tiers, and read protocol.
+6. Read `docs/source-ingest-policy.md` before ingesting, deriving, or summarizing a source.
+7. Read `docs/obsidian-conventions.md` before creating or materially changing durable wiki pages.
+8. Read `docs/query-workflow.md` before promoting a query answer into a durable artifact.
+9. Read `docs/search.md` when index/workstream navigation is not enough.
+10. Read `docs/wiki-health-lint.md` before running or filing wiki health checks.
+11. Inspect the issue, workstream, source folder, note, review, or decision that scopes the task.
+12. Keep edits scoped to that workflow.
 
 If there is no active workstream or issue, do not invent one unless the task explicitly asks for it.
 

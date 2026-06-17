@@ -19,10 +19,10 @@ The wiki starter has baseline automation, Obsidian-facing conventions, durable q
 
 | Wave | Issue | Owner Lane | Status | Acceptance Focus |
 | --- | --- | --- | --- | --- |
-| Wave A | [#6 Wire validate_repo.py into GitHub Actions](https://github.com/abrapacabra/llm-wiki-starter/issues/6) | Agent A | complete | Workflow runs `python tools/validate_repo.py` on pull requests and pushes to `main`. |
-| Wave A | [#1 Add Obsidian-native wiki conventions](https://github.com/abrapacabra/llm-wiki-starter/issues/1) | Agent B | complete | Conventions doc exists, templates include metadata, and validator still passes. |
-| Wave B | [#2 Define query-to-durable-artifact workflow](https://github.com/abrapacabra/llm-wiki-starter/issues/2) | Agent C | complete | Workflow distinguishes ephemeral answers from durable notes, reviews, decisions, source summaries, and workstream updates. |
-| Wave B | [#5 Register Karpathy LLM Wiki pattern as a design source](https://github.com/abrapacabra/llm-wiki-starter/issues/5) | Agent D | complete | `karpathy-llm-wiki-pattern` is registered as `reference`, summary-only use is explicit, and a durable note cites the source ID. |
+| Wave A | [#6 Wire validate_repo.py into GitHub Actions](https://github.com/drkolesnikov/llm-wiki-starter/issues/6) | Agent A | complete | Workflow runs `python tools/validate_repo.py` on pull requests and pushes to `main`. |
+| Wave A | [#1 Add Obsidian-native wiki conventions](https://github.com/drkolesnikov/llm-wiki-starter/issues/1) | Agent B | complete | Conventions doc exists, templates include metadata, and validator still passes. |
+| Wave B | [#2 Define query-to-durable-artifact workflow](https://github.com/drkolesnikov/llm-wiki-starter/issues/2) | Agent C | complete | Workflow distinguishes ephemeral answers from durable notes, reviews, decisions, source summaries, and workstream updates. |
+| Wave B | [#5 Register Karpathy LLM Wiki pattern as a design source](https://github.com/drkolesnikov/llm-wiki-starter/issues/5) | Agent D | complete | `karpathy-llm-wiki-pattern` is registered as `reference`, summary-only use is explicit, and a durable note cites the source ID. |
 
 ## Coordination
 

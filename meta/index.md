@@ -2,7 +2,7 @@
 artifact_type: index
 status: active
 owner: agents
-updated: 2026-05-24
+updated: 2026-06-17
 ---
 
 # Wiki Index
@@ -12,6 +12,7 @@ Add only durable artifacts that should be easy for future agents to find.
 ## Active Workstreams
 
 - [Wiki Starter Hardening](../projects/workstreams/wiki-starter-hardening.md)
+- [OKF Improvements Program](../projects/workstreams/okf-improvements.md)
 
 ## Knowledge Notes
 
@@ -23,6 +24,7 @@ Add only durable artifacts that should be easy for future agents to find.
 
 ## Decisions
 
+- [Adopt OKF Compatibility](../projects/decisions/adopt-okf-compatibility.md)
 - [Adopt Docling for PDF Ingest](../projects/decisions/adopt-docling-pdf-ingest.md)
 - [Use OSS Tools For EPUB Ingest](../projects/epub-ingest-oss-tooling-decision.md)
 - [Package LLM Wiki as a Plugin and Installer](../projects/decisions/package-llm-wiki-plugin.md)

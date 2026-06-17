@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""Shared structural specification for the LLM wiki starter repository.
+
+This module is the single source of truth for the validator's allow-lists,
+skip directories, and the per-artifact required sections derived from the
+templates under ``docs/templates/``.
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+# SKIP_DIRS is owned by the frontmatter module (the leaf parser/walker) and
+# re-exported here for the validator's existing importers. This one-way import
+# (wiki_spec -> frontmatter) breaks the former circular import.
+try:  # script invocation: ``tools/`` is on sys.path[0]
+    from frontmatter import SKIP_DIRS
+except ImportError:  # imported as ``tools.wiki_spec``
+    from tools.frontmatter import SKIP_DIRS
+
+ALLOWED_ARTIFACT_TYPES = {
+    "knowledge-note",
+    "source-summary",
+    "source-map",
+    "source-registry",
+    "index",
+    "log",
+    "milestone",
+    "workstream",
+    "review",
+    "decision",
+    "agent-task",
+    "source-ingest-policy",
+}
+
+ALLOWED_STATUSES = {
+    "draft",
+    "active",
+    "needs-review",
+    "verified",
+    "conflicted",
+    "deprecated",
+}
+
+ALLOWED_SOURCE_TIERS = {
+    "primary",
+    "secondary",
+    "reference",
+    "background",
+    "restricted",
+}
+
+# Optional frontmatter fields that are recognized by the spec.
+# Absence never causes an error; presence is never flagged as unknown.
+KNOWN_OPTIONAL_FIELDS: frozenset[str] = frozenset(
+    {
+        "description",  # one-sentence human summary of the artifact
+        "resource",     # canonical URI the artifact is about (URL, DOI, …)
+    }
+)
+
+TEMPLATES_DIR = ROOT / "docs" / "templates"
+
+_HEADING_RE = re.compile(r"^##\s+(.+?)\s*$")
+
+
+def _template_artifact_type(text: str) -> str | None:
+    """Return the ``artifact_type`` declared in a template's frontmatter."""
+
+    try:  # script invocation: ``tools/`` is on sys.path[0]
+        from frontmatter import parse_frontmatter
+    except ImportError:  # imported as ``tools.wiki_spec``
+        from tools.frontmatter import parse_frontmatter
+
+    fm = parse_frontmatter(text)
+    value = fm.data.get("artifact_type")
+    if not isinstance(value, str) or not value:
+        return None
+    return value
+
+
+def _template_sections(text: str) -> list[str]:
+    """Return the top-level ``##`` headings found in a template body."""
+
+    sections: list[str] = []
+    for line in text.splitlines():
+        match = _HEADING_RE.match(line)
+        if match:
+            sections.append(match.group(1).strip())
+    return sections
+
+
+def _build_required_sections(templates_dir: Path) -> dict[str, list[str]]:
+    """Map each artifact_type to the ``##`` headings of its template.
+
+    Artifact types with no template map to an empty list. When several
+    templates declare the same artifact_type, the first encountered (sorted
+    by file name) provides the canonical section list.
+    """
+
+    required: dict[str, list[str]] = {artifact: [] for artifact in ALLOWED_ARTIFACT_TYPES}
+    if not templates_dir.is_dir():
+        return required
+    for template_path in sorted(templates_dir.glob("*.md")):
+        text = template_path.read_text(encoding="utf-8")
+        artifact_type = _template_artifact_type(text)
+        if artifact_type is None or artifact_type not in required:
+            continue
+        if required[artifact_type]:
+            continue
+        required[artifact_type] = _template_sections(text)
+    return required
+
+
+REQUIRED_SECTIONS: dict[str, list[str]] = _build_required_sections(TEMPLATES_DIR)

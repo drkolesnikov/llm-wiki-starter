@@ -9,51 +9,43 @@ import argparse
 from collections import Counter
 from pathlib import Path
 
+try:  # script invocation: ``tools/`` is on sys.path[0]
+    from wiki_spec import (
+        ALLOWED_ARTIFACT_TYPES,
+        ALLOWED_SOURCE_TIERS,
+        ALLOWED_STATUSES,
+    )
+except ImportError:  # imported as ``tools.validate_repo``
+    from tools.wiki_spec import (
+        ALLOWED_ARTIFACT_TYPES,
+        ALLOWED_SOURCE_TIERS,
+        ALLOWED_STATUSES,
+    )
+
+try:  # script invocation
+    from frontmatter import (
+        clean_scalar,
+        markdown_files as _markdown_files_fn,
+        parse_frontmatter_lines as parse_frontmatter,
+        split_frontmatter,
+    )
+except ImportError:  # imported as ``tools.validate_repo``
+    from tools.frontmatter import (
+        clean_scalar,
+        markdown_files as _markdown_files_fn,
+        parse_frontmatter_lines as parse_frontmatter,
+        split_frontmatter,
+    )
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SKIP_DIRS = {
-    ".cache",
-    ".git",
-    ".pytest_cache",
-    ".venv",
-    "__pycache__",
-    "scratch",
-    "tmp",
-    "venv",
-}
-
-ALLOWED_ARTIFACT_TYPES = {
-    "knowledge-note",
-    "source-summary",
-    "source-map",
-    "source-registry",
-    "index",
-    "log",
-    "milestone",
-    "workstream",
-    "review",
-    "decision",
-    "agent-task",
-    "source-ingest-policy",
-}
-
-ALLOWED_STATUSES = {
-    "draft",
-    "active",
-    "needs-review",
-    "verified",
-    "conflicted",
-    "deprecated",
-}
-
-ALLOWED_SOURCE_TIERS = {
-    "primary",
-    "secondary",
-    "reference",
-    "background",
-    "restricted",
-}
+# Portable-core fields per docs/llm-wiki-format.md §4. The portable-profile
+# tier *fails* on the three load-bearing fields below and *reports* the
+# remaining recommended core fields without failing (see issue #30).
+PORTABLE_REQUIRED_FIELDS = ("artifact_type", "title", "updated")
+PORTABLE_RECOMMENDED_FIELDS = ("description", "resource")
+ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 WIKILINK_RE = re.compile(r"\[\[([^\]|#]+)")
@@ -65,55 +57,7 @@ def rel(path: Path) -> str:
 
 
 def markdown_files() -> list[Path]:
-    return sorted(
-        path
-        for path in ROOT.rglob("*.md")
-        if not any(part in SKIP_DIRS for part in path.parts)
-    )
-
-
-def split_frontmatter(text: str) -> tuple[dict[str, object], int] | tuple[None, int]:
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return None, 0
-    for end_index in range(1, len(lines)):
-        if lines[end_index].strip() == "---":
-            return parse_frontmatter(lines[1:end_index]), end_index + 1
-    return {}, len(lines)
-
-
-def parse_frontmatter(lines: list[str]) -> dict[str, object]:
-    data: dict[str, object] = {}
-    current_key: str | None = None
-    for raw_line in lines:
-        if not raw_line.strip():
-            continue
-        if raw_line.startswith("  - ") and current_key:
-            value = raw_line[4:].strip()
-            current = data.setdefault(current_key, [])
-            if isinstance(current, list):
-                current.append(clean_scalar(value))
-            continue
-        if ":" not in raw_line:
-            continue
-        key, value = raw_line.split(":", 1)
-        key = key.strip()
-        value = value.strip()
-        current_key = key
-        if value == "[]":
-            data[key] = []
-        elif value:
-            data[key] = clean_scalar(value)
-        else:
-            data[key] = []
-    return data
-
-
-def clean_scalar(value: str) -> str:
-    value = value.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-        return value[1:-1]
-    return value
+    return _markdown_files_fn(ROOT)
 
 
 def should_require_frontmatter(path: Path) -> bool:
@@ -134,8 +78,8 @@ def should_require_frontmatter(path: Path) -> bool:
     )
 
 
-def registered_sources() -> dict[str, dict[str, str]]:
-    registry_path = ROOT / "meta" / "source-registry.md"
+def registered_sources(root: Path | None = None) -> dict[str, dict[str, str]]:
+    registry_path = (root if root is not None else ROOT) / "meta" / "source-registry.md"
     if not registry_path.exists():
         return {}
     sources: dict[str, dict[str, str]] = {}
@@ -336,6 +280,24 @@ def health_report(sources: dict[str, dict[str, str]]) -> str:
     return "\n".join(lines)
 
 
+def eval_findings_report(model=None) -> str:
+    """Render the advisory eval suite (issue #35) as a report block.
+
+    Runs the auto-discovered signal suite from :mod:`tools.eval` against the
+    parsed :class:`RepoModel` and renders its findings. Eval findings are
+    **advisory**: this returns text only and never affects exit status.
+    """
+
+    try:  # script invocation: ``tools/`` is on sys.path[0]
+        from eval import render_report, run_suite
+    except ImportError:  # imported as ``tools.validate_repo``
+        from tools.eval import render_report, run_suite
+    if model is None:
+        model = _load_repo_model()
+    markdown, _machine = render_report(run_suite(model))
+    return "\n" + markdown
+
+
 def is_health_artifact(path: Path, frontmatter: dict[str, object]) -> bool:
     artifact_type = frontmatter.get("artifact_type")
     if artifact_type in {"index", "log", "source-registry"}:
@@ -365,8 +327,110 @@ def should_skip_link(href: str) -> bool:
     )
 
 
+def _load_repo_model():
+    """Load the parsed :class:`RepoModel` rooted at the current ``ROOT``.
+
+    Imported lazily and rooted at the module-level ``ROOT`` so tests that
+    monkeypatch ``validate_repo.ROOT`` see the override.
+    """
+
+    try:  # script invocation: ``tools/`` is on sys.path[0]
+        from wiki_model import load_repo_model
+    except ImportError:  # imported as ``tools.validate_repo``
+        from tools.wiki_model import load_repo_model
+    return load_repo_model(ROOT)
+
+
+def _run_structural_checks(errors: list[str], model=None) -> None:
+    """Run every auto-discovered structural check in sorted filename order.
+
+    The check registry lives in the ``checks`` package next to this module so
+    new checks are add-a-file. ``model`` is parsed lazily when not supplied so
+    callers that already have one avoid re-parsing.
+    """
+
+    try:  # script invocation: ``tools/`` is on sys.path[0]
+        import checks
+    except ImportError:  # imported as ``tools.validate_repo``
+        from tools import checks
+    if model is None:
+        model = _load_repo_model()
+    checks.run_checks(model, errors)
+
+
+def valid_iso_date(value: object) -> bool:
+    """Return ``True`` when ``value`` is a ``YYYY-MM-DD`` calendar date."""
+
+    return isinstance(value, str) and bool(ISO_DATE_RE.match(value.strip()))
+
+
+def portable_profile_report(model=None) -> tuple[str, int]:
+    """Evaluate the portable-profile tier; return ``(report_text, failures)``.
+
+    Per issue #30, an artifact *fails* the portable profile when it is missing
+    ``artifact_type``, ``title``, or a valid ISO-8601 (``YYYY-MM-DD``)
+    ``updated`` field. Missing recommended core fields (``description``,
+    ``resource``) are *reported* but do not count as failures. Only artifacts
+    that carry frontmatter and are durable (``should_require_frontmatter``) are
+    evaluated, mirroring the structural tier's scope.
+    """
+
+    if model is None:
+        model = _load_repo_model()
+
+    failures: list[str] = []
+    advisories: list[str] = []
+    for artifact in model.artifacts:
+        if not should_require_frontmatter(artifact.path):
+            continue
+        frontmatter = artifact.frontmatter
+        if not frontmatter:
+            failures.append(f"{rel(artifact.path)}: missing frontmatter")
+            continue
+        for field_name in PORTABLE_REQUIRED_FIELDS:
+            value = frontmatter.get(field_name)
+            if field_name == "updated":
+                if not valid_iso_date(value):
+                    if value in (None, "", []):
+                        failures.append(f"{rel(artifact.path)}: missing portable-core field 'updated'")
+                    else:
+                        failures.append(
+                            f"{rel(artifact.path)}: 'updated' is not an ISO-8601 (YYYY-MM-DD) date: {value!r}"
+                        )
+                continue
+            if value in (None, "", []):
+                failures.append(f"{rel(artifact.path)}: missing portable-core field {field_name!r}")
+        for field_name in PORTABLE_RECOMMENDED_FIELDS:
+            value = frontmatter.get(field_name)
+            if value in (None, "", []):
+                advisories.append(f"{rel(artifact.path)}: missing recommended core field {field_name!r}")
+
+    lines = [
+        "",
+        "Portable-profile report",
+        "=======================",
+        "Failures (missing artifact_type/title or invalid updated):",
+    ]
+    lines.extend(format_report_items(failures))
+    lines.append("")
+    lines.append("Advisories (missing recommended core fields):")
+    lines.extend(format_report_items(advisories))
+    return "\n".join(lines), len(failures)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate structural wiki repository rules.")
+    parser.add_argument(
+        "--tier",
+        action="append",
+        choices=["structural", "portable", "health"],
+        dest="tiers",
+        help=(
+            "Conformance tier to run (repeatable). 'structural' (default) is "
+            "blocking; 'portable' enforces the portable-core profile; 'health' "
+            "prints non-blocking health signals. Omit to run structural only."
+        ),
+    )
     parser.add_argument(
         "--health-report",
         action="store_true",
@@ -375,22 +439,65 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+def _run_structural_tier() -> int:
+    """Run the structural tier; preserves today's output and exit codes."""
+
     errors: list[str] = []
-    sources = registered_sources()
-    validate_frontmatter(errors, sources)
-    validate_registry(errors, sources)
-    validate_links(errors)
+    _run_structural_checks(errors)
     if errors:
         for error in errors:
             print(f"ERROR: {error}")
         print(f"\nRepository validation failed with {len(errors)} issue(s).")
         return 1
     print("Repository validation passed.")
-    if args.health_report:
-        print(health_report(sources))
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+
+    # No --tier selection preserves today's behavior byte-for-byte: run the
+    # structural tier, then optionally append the health report (exit 0).
+    if not args.tiers:
+        sources = registered_sources()
+        errors: list[str] = []
+        _run_structural_checks(errors, _load_repo_model())
+        if errors:
+            for error in errors:
+                print(f"ERROR: {error}")
+            print(f"\nRepository validation failed with {len(errors)} issue(s).")
+            return 1
+        print("Repository validation passed.")
+        if args.health_report:
+            print(health_report(sources))
+        return 0
+
+    # Explicit tier selection: run each requested tier once, labeled, in a
+    # stable order. Only the structural tier is blocking.
+    exit_code = 0
+    tier_order = [t for t in ("structural", "portable", "health") if t in set(args.tiers)]
+    for tier in tier_order:
+        if tier == "structural":
+            print("[tier: structural]")
+            if _run_structural_tier() != 0:
+                exit_code = 1
+        elif tier == "portable":
+            print("[tier: portable-profile]")
+            report, failures = portable_profile_report()
+            print(report)
+            if failures:
+                print(f"\nPortable-profile failed with {failures} issue(s).")
+                exit_code = 1
+            else:
+                print("\nPortable-profile passed.")
+        elif tier == "health":
+            print("[tier: advisory-health]")
+            print(health_report(registered_sources()))
+            print(eval_findings_report())
+
+    if args.health_report and "health" not in tier_order:
+        print(health_report(registered_sources()))
+    return exit_code
 
 
 if __name__ == "__main__":

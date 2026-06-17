@@ -4,6 +4,8 @@ status: needs-review
 source_id: ""
 source_tier: reference
 title: ""
+description: ""
+resource: ""
 sources: []
 aliases: []
 tags:

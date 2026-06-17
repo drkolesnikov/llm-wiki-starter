@@ -7,6 +7,12 @@ updated: 2026-05-24
 
 # Maintenance Log
 
+## 2026-06-17
+
+- Ratified the OKF-compatibility direction (issue #15): adopt OKF as an external interchange goal while keeping the stricter internal governance model; anchor identity on portable interchange with OKF v0.1 as the first compatibility profile. Recorded as a decision and the OKF Improvements workstream.
+- Landed the OKF Improvements program (#24-#53): a named format spec, a three-tier validator with an auto-discovered checks registry, optional description and resource fields, index and log generation, a governance-aware static graph viewer, guarded web ingestion and enrichment, shared source-registration with write-time and ingest guards plus a CI gate, a model-agnostic wiki health and evaluation suite, and optional OKF export and import.
+- Landed the architecture-deepening cleanup (#55-#64): single-sourced the vendored tool tree behind a sync script and CI drift gate; consolidated five frontmatter parsers into one deep Artifact parser; unified three auto-discovery registries into one helper and fixed non-deterministic command ordering; shared the optional-LLM disabled-backend guard in one base; and unified source-id validation and registry wiring into one source-ingest core.
+
 ## 2026-05-24
 
 - Added EPUB source-ingest guidance and an OSS tooling decision. Chose Pandoc as default EPUB converter, Calibre CLI as fallback, and EbookLib as a non-default reference to avoid custom parser maintenance.

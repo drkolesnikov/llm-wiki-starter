@@ -16,3 +16,5 @@ raw/external/**
 # Generated local scratch output.
 tmp/
 scratch/
+
+.claude/
