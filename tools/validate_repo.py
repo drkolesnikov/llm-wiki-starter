@@ -27,6 +27,13 @@ except ImportError:  # imported as ``tools.validate_repo``
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Portable-core fields per docs/llm-wiki-format.md §4. The portable-profile
+# tier *fails* on the three load-bearing fields below and *reports* the
+# remaining recommended core fields without failing (see issue #30).
+PORTABLE_REQUIRED_FIELDS = ("artifact_type", "title", "updated")
+PORTABLE_RECOMMENDED_FIELDS = ("description", "resource")
+ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
 LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 WIKILINK_RE = re.compile(r"\[\[([^\]|#]+)")
 CODE_SPAN_RE = re.compile(r"(`+).*?\1", re.DOTALL)
@@ -337,8 +344,110 @@ def should_skip_link(href: str) -> bool:
     )
 
 
+def _load_repo_model():
+    """Load the parsed :class:`RepoModel` rooted at the current ``ROOT``.
+
+    Imported lazily and rooted at the module-level ``ROOT`` so tests that
+    monkeypatch ``validate_repo.ROOT`` see the override.
+    """
+
+    try:  # script invocation: ``tools/`` is on sys.path[0]
+        from wiki_model import load_repo_model
+    except ImportError:  # imported as ``tools.validate_repo``
+        from tools.wiki_model import load_repo_model
+    return load_repo_model(ROOT)
+
+
+def _run_structural_checks(errors: list[str], model=None) -> None:
+    """Run every auto-discovered structural check in sorted filename order.
+
+    The check registry lives in the ``checks`` package next to this module so
+    new checks are add-a-file. ``model`` is parsed lazily when not supplied so
+    callers that already have one avoid re-parsing.
+    """
+
+    try:  # script invocation: ``tools/`` is on sys.path[0]
+        import checks
+    except ImportError:  # imported as ``tools.validate_repo``
+        from tools import checks
+    if model is None:
+        model = _load_repo_model()
+    checks.run_checks(model, errors)
+
+
+def valid_iso_date(value: object) -> bool:
+    """Return ``True`` when ``value`` is a ``YYYY-MM-DD`` calendar date."""
+
+    return isinstance(value, str) and bool(ISO_DATE_RE.match(value.strip()))
+
+
+def portable_profile_report(model=None) -> tuple[str, int]:
+    """Evaluate the portable-profile tier; return ``(report_text, failures)``.
+
+    Per issue #30, an artifact *fails* the portable profile when it is missing
+    ``artifact_type``, ``title``, or a valid ISO-8601 (``YYYY-MM-DD``)
+    ``updated`` field. Missing recommended core fields (``description``,
+    ``resource``) are *reported* but do not count as failures. Only artifacts
+    that carry frontmatter and are durable (``should_require_frontmatter``) are
+    evaluated, mirroring the structural tier's scope.
+    """
+
+    if model is None:
+        model = _load_repo_model()
+
+    failures: list[str] = []
+    advisories: list[str] = []
+    for artifact in model.artifacts:
+        if not should_require_frontmatter(artifact.path):
+            continue
+        frontmatter = artifact.frontmatter
+        if not frontmatter:
+            failures.append(f"{rel(artifact.path)}: missing frontmatter")
+            continue
+        for field_name in PORTABLE_REQUIRED_FIELDS:
+            value = frontmatter.get(field_name)
+            if field_name == "updated":
+                if not valid_iso_date(value):
+                    if value in (None, "", []):
+                        failures.append(f"{rel(artifact.path)}: missing portable-core field 'updated'")
+                    else:
+                        failures.append(
+                            f"{rel(artifact.path)}: 'updated' is not an ISO-8601 (YYYY-MM-DD) date: {value!r}"
+                        )
+                continue
+            if value in (None, "", []):
+                failures.append(f"{rel(artifact.path)}: missing portable-core field {field_name!r}")
+        for field_name in PORTABLE_RECOMMENDED_FIELDS:
+            value = frontmatter.get(field_name)
+            if value in (None, "", []):
+                advisories.append(f"{rel(artifact.path)}: missing recommended core field {field_name!r}")
+
+    lines = [
+        "",
+        "Portable-profile report",
+        "=======================",
+        "Failures (missing artifact_type/title or invalid updated):",
+    ]
+    lines.extend(format_report_items(failures))
+    lines.append("")
+    lines.append("Advisories (missing recommended core fields):")
+    lines.extend(format_report_items(advisories))
+    return "\n".join(lines), len(failures)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate structural wiki repository rules.")
+    parser.add_argument(
+        "--tier",
+        action="append",
+        choices=["structural", "portable", "health"],
+        dest="tiers",
+        help=(
+            "Conformance tier to run (repeatable). 'structural' (default) is "
+            "blocking; 'portable' enforces the portable-core profile; 'health' "
+            "prints non-blocking health signals. Omit to run structural only."
+        ),
+    )
     parser.add_argument(
         "--health-report",
         action="store_true",
@@ -347,22 +456,64 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+def _run_structural_tier() -> int:
+    """Run the structural tier; preserves today's output and exit codes."""
+
     errors: list[str] = []
-    sources = registered_sources()
-    validate_frontmatter(errors, sources)
-    validate_registry(errors, sources)
-    validate_links(errors)
+    _run_structural_checks(errors)
     if errors:
         for error in errors:
             print(f"ERROR: {error}")
         print(f"\nRepository validation failed with {len(errors)} issue(s).")
         return 1
     print("Repository validation passed.")
-    if args.health_report:
-        print(health_report(sources))
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+
+    # No --tier selection preserves today's behavior byte-for-byte: run the
+    # structural tier, then optionally append the health report (exit 0).
+    if not args.tiers:
+        sources = registered_sources()
+        errors: list[str] = []
+        _run_structural_checks(errors, _load_repo_model())
+        if errors:
+            for error in errors:
+                print(f"ERROR: {error}")
+            print(f"\nRepository validation failed with {len(errors)} issue(s).")
+            return 1
+        print("Repository validation passed.")
+        if args.health_report:
+            print(health_report(sources))
+        return 0
+
+    # Explicit tier selection: run each requested tier once, labeled, in a
+    # stable order. Only the structural tier is blocking.
+    exit_code = 0
+    tier_order = [t for t in ("structural", "portable", "health") if t in set(args.tiers)]
+    for tier in tier_order:
+        if tier == "structural":
+            print("[tier: structural]")
+            if _run_structural_tier() != 0:
+                exit_code = 1
+        elif tier == "portable":
+            print("[tier: portable-profile]")
+            report, failures = portable_profile_report()
+            print(report)
+            if failures:
+                print(f"\nPortable-profile failed with {failures} issue(s).")
+                exit_code = 1
+            else:
+                print("\nPortable-profile passed.")
+        elif tier == "health":
+            print("[tier: advisory-health]")
+            print(health_report(registered_sources()))
+
+    if args.health_report and "health" not in tier_order:
+        print(health_report(registered_sources()))
+    return exit_code
 
 
 if __name__ == "__main__":
