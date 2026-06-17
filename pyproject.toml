@@ -16,9 +16,7 @@ dependencies = [
 llm-wiki = "llm_wiki_wizard.cli:app"
 
 [dependency-groups]
-dev = [
-    "pytest>=9.1.0",
-]
+dev = []
 pdf = [
   "docling>=2.93,<3",
   "pandas>=2.0",
