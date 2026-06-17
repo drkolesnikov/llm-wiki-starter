@@ -76,6 +76,13 @@ VENDORED_TOOL_FILES: tuple[str, ...] = (
     "wiki_spec.py",
 )
 
+# Canonical list of doc files (relative to docs/) vendored into the template's
+# docs/ so generated wikis ship the current format contract and guides. Covered
+# by the same sync script + CI drift gate as the tool manifest above.
+VENDORED_DOC_FILES: tuple[str, ...] = (
+    "llm-wiki-format.md",
+)
+
 POINTER_START = "<!-- llm-wiki:start -->"
 POINTER_END = "<!-- llm-wiki:end -->"
 POINTER_BLOCK = "\n".join(

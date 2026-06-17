@@ -17,13 +17,15 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from llm_wiki_wizard.installer import VENDORED_TOOL_FILES
+from llm_wiki_wizard.installer import VENDORED_TOOL_FILES, VENDORED_DOC_FILES
 
 
 # Repository root is two levels above this file (tests/test_*.py → repo root).
 REPO_ROOT = Path(__file__).resolve().parents[1]
 LIVE_TOOLS = REPO_ROOT / "tools"
 VENDORED_TOOLS = REPO_ROOT / "src" / "llm_wiki_wizard" / "templates" / "wiki" / "tools"
+LIVE_DOCS = REPO_ROOT / "docs"
+VENDORED_DOCS = REPO_ROOT / "src" / "llm_wiki_wizard" / "templates" / "wiki" / "docs"
 
 
 class VendoredToolDriftTests(unittest.TestCase):
@@ -97,6 +99,24 @@ class VendoredToolDriftTests(unittest.TestCase):
                 "Python files in vendored tree not listed in VENDORED_TOOL_FILES "
                 "(add them to the manifest or remove from the tree):\n"
                 + "\n".join(f"  {r}" for r in sorted(extra))
+            )
+
+    def test_no_drift_between_live_and_vendored_docs(self):
+        """Manifested doc files exist in the vendored tree and are byte-identical to live."""
+        problems: list[str] = []
+        for rel in VENDORED_DOC_FILES:
+            live = LIVE_DOCS / rel
+            vendored = VENDORED_DOCS / rel
+            if not live.exists():
+                problems.append(f"LIVE DOC MISSING (stale manifest entry?): docs/{rel}")
+            elif not vendored.exists():
+                problems.append(f"MISSING FROM VENDORED: docs/{rel}")
+            elif live.read_bytes() != vendored.read_bytes():
+                problems.append(f"CONTENT DIFFERS: docs/{rel}")
+        if problems:
+            self.fail(
+                "Vendored doc drift (run `uv run python tools/sync_vendored.py`):\n"
+                + "\n".join(f"  {p}" for p in sorted(problems))
             )
 
 

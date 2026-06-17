@@ -42,11 +42,16 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LIVE_TOOLS = REPO_ROOT / "tools"
 VENDORED_TOOLS = REPO_ROOT / "src" / "llm_wiki_wizard" / "templates" / "wiki" / "tools"
+LIVE_DOCS = REPO_ROOT / "docs"
+VENDORED_DOCS = REPO_ROOT / "src" / "llm_wiki_wizard" / "templates" / "wiki" / "docs"
 
-# We import the manifest from the installed package (or source tree) so that
+# We import the manifests from the installed package (or source tree) so that
 # installer.py stays the single authoritative source.
 sys.path.insert(0, str(REPO_ROOT / "src"))
-from llm_wiki_wizard.installer import VENDORED_TOOL_FILES  # noqa: E402
+from llm_wiki_wizard.installer import (  # noqa: E402
+    VENDORED_TOOL_FILES,
+    VENDORED_DOC_FILES,
+)
 
 
 def _sync(
@@ -81,6 +86,25 @@ def _sync(
             shutil.copy2(live, vendored)
 
         copied.append(rel)
+
+    for rel in VENDORED_DOC_FILES:
+        live = LIVE_DOCS / rel
+        vendored = VENDORED_DOCS / rel
+
+        if not live.exists():
+            errors.append(f"LIVE FILE MISSING (stale manifest entry?): docs/{rel}")
+            continue
+
+        live_bytes = live.read_bytes()
+        if vendored.exists() and vendored.read_bytes() == live_bytes:
+            skipped.append(f"docs/{rel}")
+            continue
+
+        if not dry_run and not check:
+            vendored.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(live, vendored)
+
+        copied.append(f"docs/{rel}")
 
     # Report.
     for rel in copied:
