@@ -12,14 +12,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 try:  # script invocation: ``tools/`` is on sys.path[0]
-    from wiki_spec import SKIP_DIRS
+    from frontmatter import markdown_files, split_frontmatter
 except ImportError:  # imported as ``tools.wiki_model``
-    from tools.wiki_spec import SKIP_DIRS
+    from tools.frontmatter import markdown_files, split_frontmatter
 
 try:
-    from validate_repo import registered_sources, split_frontmatter
+    from validate_repo import registered_sources
 except ImportError:
-    from tools.validate_repo import registered_sources, split_frontmatter
+    from tools.validate_repo import registered_sources
 
 
 @dataclass(frozen=True)
@@ -40,14 +40,6 @@ class RepoModel:
     sources: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
-def _markdown_files(root: Path) -> list[Path]:
-    return sorted(
-        path
-        for path in root.rglob("*.md")
-        if not any(part in SKIP_DIRS for part in path.parts)
-    )
-
-
 def load_repo_model(root: Path) -> RepoModel:
     """Parse all Markdown artifacts under ``root`` into a :class:`RepoModel`.
 
@@ -58,15 +50,15 @@ def load_repo_model(root: Path) -> RepoModel:
 
     root = Path(root)
     artifacts: list[Artifact] = []
-    for path in _markdown_files(root):
+    for path in markdown_files(root):
         text = path.read_text(encoding="utf-8")
-        frontmatter, body_start = split_frontmatter(text)
+        fm, body_start = split_frontmatter(text)
         body_lines = text.splitlines()[body_start:]
         body = "\n".join(body_lines)
         artifacts.append(
             Artifact(
                 path=path,
-                frontmatter=frontmatter if frontmatter is not None else {},
+                frontmatter=fm if fm is not None else {},
                 body=body,
             )
         )

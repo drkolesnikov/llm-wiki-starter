@@ -390,10 +390,11 @@ class ValidatorSupersetTests(unittest.TestCase):
 
     def test_superset_extension_key_beyond_validator(self):
         inner = ["llm-wiki:status: active"]
-        # Validator mis-splits compound keys on the first bare ":".
+        # After migration (#61), validate_repo.parse_frontmatter IS
+        # frontmatter.parse_frontmatter_lines, so both correctly handle
+        # OKF extension keys (compound ``ns:field`` keys).
         validator = validate_repo.parse_frontmatter(inner)
-        self.assertEqual(validator, {"llm-wiki": "status: active"})
-        # The new parser handles them correctly.
+        self.assertEqual(validator, {"llm-wiki:status": "active"})
         got = frontmatter.parse_frontmatter_lines(inner)
         self.assertEqual(got, {"llm-wiki:status": "active"})
 
